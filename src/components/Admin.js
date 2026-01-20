@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { FaUsers, FaUserPlus, FaTrash, FaEdit, FaEye, FaSearch, FaStore, FaEnvelope, FaKey, FaShieldAlt, FaUser } from 'react-icons/fa';
 import { authService } from '../services/auth';
 
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://agenda-medicao-m7lhl9fcu-vvalmir-silvas-projects.vercel.app/api'
+  : 'http://localhost:5000/api';
+
 const Admin = ({ user, onLogout }) => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,7 +31,7 @@ const Admin = ({ user, onLogout }) => {
       const token = localStorage.getItem('token');
       console.log('Token:', token ? 'exists' : 'missing');
       
-      const response = await fetch('http://localhost:5000/api/users', {
+      const response = await fetch(`${API_BASE_URL}/users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -60,7 +64,7 @@ const Admin = ({ user, onLogout }) => {
     e.preventDefault();
     
     try {
-      const url = showEditModal ? `http://localhost:5000/api/users/${selectedUser.id}` : 'http://localhost:5000/api/users/register';
+      const url = showEditModal ? `${API_BASE_URL}/users/${selectedUser.id}` : `${API_BASE_URL}/users/register`;
       const method = showEditModal ? 'PUT' : 'POST';
       
       const response = await fetch(url, {
@@ -104,7 +108,7 @@ const Admin = ({ user, onLogout }) => {
   const handleDelete = async (userId) => {
     if (window.confirm('Tem certeza que deseja excluir este usuário?')) {
       try {
-        const response = await fetch(`http://localhost:5000/api/users/${userId}`, {
+        const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
