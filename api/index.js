@@ -54,6 +54,13 @@ module.exports = async (req, res) => {
   }
 
   try {
+    // Parse body for POST requests
+    if (req.method === 'POST' && !req.body) {
+      req.body = JSON.parse(req.body || '{}');
+    }
+
+    console.log('API Request:', req.method, req.url, req.body);
+
     const db = await connectToDatabase();
     const urlParts = req.url.split('/');
     const path = urlParts[1]; // 'auth' or 'users'
@@ -63,6 +70,8 @@ module.exports = async (req, res) => {
     if (path === 'auth') {
       if (req.method === 'POST' && action === 'login') {
         const { username, password } = req.body;
+        
+        console.log('Login attempt:', { username, passwordProvided: !!password });
         
         if (!username || !password) {
           return res.status(400).json({ error: 'Username and password are required' });
@@ -75,6 +84,8 @@ module.exports = async (req, res) => {
             { email: username, isActive: true }
           ]
         });
+
+        console.log('User found:', !!user);
 
         if (!user) {
           return res.status(401).json({ error: 'Invalid credentials' });
@@ -90,6 +101,8 @@ module.exports = async (req, res) => {
           process.env.JWT_SECRET,
           { expiresIn: '24h' }
         );
+
+        console.log('Login successful for:', user.nome);
 
         return res.json({
           token,
@@ -122,9 +135,10 @@ module.exports = async (req, res) => {
       }
     }
 
+    console.log('Route not found:', path, action);
     res.status(404).json({ error: 'Route not found' });
   } catch (error) {
     console.error('API Error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 };
