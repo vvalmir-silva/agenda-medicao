@@ -1,5 +1,5 @@
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://agenda-medicao-m7lhl9fcu-vvalmir-silvas-projects.vercel.app/api'
+  ? 'https://agenda-medicao-backend.onrender.com/api'
   : 'http://localhost:5000/api';
 
 export const authService = {
