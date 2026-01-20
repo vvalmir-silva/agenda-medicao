@@ -8,32 +8,29 @@
     "npm": ">=8.0.0"
   },
   "scripts": {
-    "start": "vite",
-    "dev": "vite",
-    "build": "vite build",
-    "build:prod": "vite build",
-    "preview": "vite preview",
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
     "server": "node server.js",
-    "dev:full": "concurrently \"npm run server\" \"npm run dev\""
+    "dev": "concurrently \"npm run server\" \"npm start\""
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "bcryptjs": "^3.0.3",
+    "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
-    "jsonwebtoken": "^9.0.3",
-    "mongodb": "^7.0.0",
+    "jsonwebtoken": "^9.0.0",
+    "mongodb": "^4.17.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-icons": "^5.5.0",
+    "react-icons": "^4.10.0",
     "react-router-dom": "^6.8.0",
-    "uuid": "^8.3.2"
+    "react-scripts": "5.0.1",
+    "uuid": "^9.0.0"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.0.0",
-    "concurrently": "^9.2.1",
-    "react-devtools": "^7.0.1",
-    "vite": "^4.4.0"
+    "concurrently": "^8.2.0"
   }
 }
