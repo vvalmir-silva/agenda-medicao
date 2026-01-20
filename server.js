@@ -89,14 +89,20 @@ function requireAdmin(req, res, next) {
 // Login
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { username, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
     }
 
     const usersCollection = db.collection('users');
-    const user = await usersCollection.findOne({ email, isActive: true });
+    // Buscar por nome ou email (compatibilidade)
+    const user = await usersCollection.findOne({ 
+      $or: [
+        { nome: username, isActive: true },
+        { email: username, isActive: true }
+      ]
+    });
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -188,6 +194,85 @@ app.get('/api/users', authenticateToken, requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Get users error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update User (Admin only)
+app.put('/api/users/:userId', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { nome, email, senha, role, ativo } = req.body;
+
+    const usersCollection = db.collection('users');
+    
+    // Construir objeto de atualização
+    const updateData = {
+      nome,
+      email,
+      role,
+      ativo,
+      updatedAt: new Date()
+    };
+
+    // Adicionar senha apenas se fornecida
+    if (senha && senha.trim() !== '') {
+      const bcrypt = require('bcryptjs');
+      const hashedPassword = await bcrypt.hash(senha, 10);
+      updateData.senha = hashedPassword;
+    }
+
+    // Tentar buscar por ObjectId primeiro, depois por string id
+    let objectId;
+    let foundUser = null;
+    let searchType = '';
+    
+    try {
+      const { ObjectId } = require('mongodb');
+      objectId = new ObjectId(userId);
+      foundUser = await usersCollection.findOne({ 
+        _id: objectId
+      });
+      searchType = 'ObjectId';
+    } catch (error) {
+      foundUser = await usersCollection.findOne({ 
+        id: userId
+      });
+      searchType = 'string id';
+    }
+    
+    if (!foundUser) {
+      return res.status(404).json({ 
+        error: 'User not found',
+        details: `Nenhum usuário encontrado com ID: ${userId} (busca por ${searchType})`
+      });
+    }
+
+    // Construir filtro de busca correto
+    let filter;
+    if (searchType === 'ObjectId') {
+      filter = { _id: objectId };
+    } else {
+      filter = { id: userId };
+    }
+
+    const result = await usersCollection.updateOne(
+      filter,
+      { $set: updateData }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ 
+      message: 'User updated successfully',
+      data: updateData,
+      matchedCount: result.matchedCount,
+      modifiedCount: result.modifiedCount
+    });
+  } catch (error) {
+    console.error('Update user error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 

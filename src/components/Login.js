@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { FaUser, FaLock, FaCalendarAlt, FaUserShield } from 'react-icons/fa';
 
 const Login = ({ onLogin }) => {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -14,7 +14,7 @@ const Login = ({ onLogin }) => {
     setError('');
     
     try {
-      const result = await onLogin(email, password);
+      const result = await onLogin(username, password);
       // O authService retorna direto os dados, não um objeto com success
       if (result) {
         // Login bem-sucedido, o componente pai vai tratar
@@ -57,18 +57,18 @@ const Login = ({ onLogin }) => {
 
         {/* Formulário */}
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Campo Email */}
+          {/* Campo Usuário */}
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <FaUser className="text-slate-400" />
             </div>
             <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="text"
+              id="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200"
-              placeholder={isAdminMode ? "admin@agenda.com" : "E-mail profissional"}
+              placeholder={isAdminMode ? "admin" : "Nome de usuário"}
               required
             />
           </div>
@@ -116,7 +116,7 @@ const Login = ({ onLogin }) => {
             onClick={() => {
               setIsAdminMode(!isAdminMode);
               setError('');
-              setEmail('');
+              setUsername('');
               setPassword('');
             }}
             className="text-slate-300 hover:text-white text-sm transition-colors duration-200"
@@ -132,7 +132,7 @@ const Login = ({ onLogin }) => {
           </p>
           {isAdminMode && (
             <p className="text-slate-500 text-xs mt-2">
-              Admin padrão: admin@agenda.com / admin123
+              Admin padrão: admin / admin123
             </p>
           )}
         </div>

@@ -6,6 +6,7 @@ import AgendamentosPendentes from './components/AgendamentosPendentes';
 import FormularioAgendamento from './components/FormularioAgendamento';
 import ListaAgendamentos from './components/ListaAgendamentos';
 import StatusDashboard from './components/StatusDashboard';
+import Admin from './components/Admin';
 import Navbar from './components/Navbar';
 
 function App() {
@@ -144,6 +145,13 @@ function App() {
       
       {currentView === 'status' && (
         <StatusDashboard 
+          user={user} 
+          onLogout={handleLogout}
+        />
+      )}
+      
+      {currentView === 'admin' && user?.role === 'admin' && (
+        <Admin 
           user={user} 
           onLogout={handleLogout}
         />
