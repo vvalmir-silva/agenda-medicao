@@ -1,10 +1,34 @@
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://agenda-medicao-backend.onrender.com/api'
+  ? 'https://agenda-medicao-git-main-vvalmir-silvas-projects.vercel.app'
   : 'http://localhost:5000/api';
 
 export const authService = {
   // Login
   async login(username, password) {
+    // Mock para produção temporariamente
+    if (process.env.NODE_ENV === 'production') {
+      if (username === 'admin' && password === 'admin123') {
+        const mockUser = {
+          token: 'mock-jwt-token-12345',
+          user: {
+            id: 'admin-001',
+            email: 'admin@agenda.com',
+            nome: 'Administrador',
+            role: 'admin'
+          }
+        };
+        
+        // Salvar no localStorage
+        localStorage.setItem('token', mockUser.token);
+        localStorage.setItem('user', JSON.stringify(mockUser.user));
+        
+        return mockUser;
+      } else {
+        throw new Error('Credenciais inválidas');
+      }
+    }
+    
+    // Backend real para desenvolvimento
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       headers: {

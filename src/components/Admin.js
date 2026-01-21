@@ -3,8 +3,33 @@ import { FaUsers, FaUserPlus, FaTrash, FaEdit, FaEye, FaSearch, FaStore, FaEnvel
 import { authService } from '../services/auth';
 
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://agenda-medicao-backend.onrender.com/api'
+  ? 'https://agenda-medicao-git-main-vvalmir-silvas-projects.vercel.app'
   : 'http://localhost:5000/api';
+
+// Mock users para produção
+const mockUsers = [
+  {
+    id: 'admin-001',
+    nome: 'Administrador',
+    email: 'admin@agenda.com',
+    role: 'admin',
+    ativo: true
+  },
+  {
+    id: 'user-001',
+    nome: 'João Silva',
+    email: 'joao@email.com',
+    role: 'user',
+    ativo: true
+  },
+  {
+    id: 'user-002',
+    nome: 'Maria Santos',
+    email: 'maria@email.com',
+    role: 'user',
+    ativo: true
+  }
+];
 
 const Admin = ({ user, onLogout }) => {
   const [users, setUsers] = useState([]);
@@ -31,6 +56,13 @@ const Admin = ({ user, onLogout }) => {
       const token = localStorage.getItem('token');
       console.log('Token:', token ? 'exists' : 'missing');
       
+      // Mock para produção
+      if (process.env.NODE_ENV === 'production') {
+        setUsers(mockUsers);
+        setLoading(false);
+        return;
+      }
+      
       const response = await fetch(`${API_BASE_URL}/users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -54,7 +86,12 @@ const Admin = ({ user, onLogout }) => {
       }
     } catch (error) {
       console.error('Erro ao buscar usuários:', error);
-      setUsers([]); // Set empty array on error
+      // Fallback para mock em produção
+      if (process.env.NODE_ENV === 'production') {
+        setUsers(mockUsers);
+      } else {
+        setUsers([]); // Set empty array on error
+      }
     } finally {
       setLoading(false);
     }
