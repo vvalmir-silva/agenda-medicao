@@ -1,4 +1,37 @@
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://agenda-medicao-git-main-vvalmir-silvas-projects.vercel.app'
+  : 'http://localhost:5000/api';
+
+// Mock data para produção
+const mockAgendamentos = [
+  {
+    id: '1',
+    cliente: 'João Silva',
+    data: '2026-01-22',
+    hora: '14:00',
+    servico: 'Medição Predial',
+    status: 'confirmado',
+    loja: 'Matriz'
+  },
+  {
+    id: '2',
+    cliente: 'Maria Santos',
+    data: '2026-01-23',
+    hora: '10:00',
+    servico: 'Medição Residencial',
+    status: 'pendente',
+    loja: 'Filial'
+  },
+  {
+    id: '3',
+    cliente: 'Carlos Oliveira',
+    data: '2026-01-24',
+    hora: '16:00',
+    servico: 'Medição Comercial',
+    status: 'agendar',
+    loja: 'Matriz'
+  }
+];
 
 export const apiService = {
   // Get auth token
@@ -10,6 +43,32 @@ export const apiService = {
 
   // Generic request method
   async request(endpoint, options = {}) {
+    // Mock para produção
+    if (process.env.NODE_ENV === 'production') {
+      console.log('Mock API - Production mode');
+      
+      // Simular delay de rede
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Retornar dados mock baseado no endpoint
+      if (endpoint.includes('agendamentos')) {
+        if (options.method === 'POST') {
+          return { success: true, message: 'Agendamento criado com sucesso' };
+        }
+        if (options.method === 'PUT') {
+          return { success: true, message: 'Agendamento atualizado com sucesso' };
+        }
+        if (options.method === 'DELETE') {
+          return { success: true, message: 'Agendamento excluído com sucesso' };
+        }
+        return mockAgendamentos;
+      }
+      
+      // Outros endpoints mock
+      return { success: true, data: [] };
+    }
+    
+    // Backend real para desenvolvimento
     const url = `${API_BASE_URL}${endpoint}`;
     const config = {
       headers: {
