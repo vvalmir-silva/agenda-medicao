@@ -69,6 +69,28 @@ module.exports = async (req, res) => {
     }
 
     console.log('Request received:', req.method, req.url);
+    console.log('Environment variables:', {
+      MONGODB_URI: process.env.MONGODB_URI ? 'SET' : 'NOT SET',
+      JWT_SECRET: process.env.JWT_SECRET ? 'SET' : 'NOT SET',
+      NODE_ENV: process.env.NODE_ENV
+    });
+
+    // Test endpoint
+    if (req.url === '/test') {
+      try {
+        const db = await connectToDatabase();
+        return res.json({ 
+          success: true, 
+          message: 'Database connection successful',
+          database: db.databaseName
+        });
+      } catch (dbError) {
+        return res.status(500).json({ 
+          error: 'Database connection failed', 
+          details: dbError.message 
+        });
+      }
+    }
 
     // Handle empty or root requests
     if (!req.url || req.url === '/' || req.url === '') {
@@ -106,8 +128,11 @@ module.exports = async (req, res) => {
         }
 
         try {
+          console.log('Attempting to connect to database...');
           const db = await connectToDatabase();
+          console.log('Database connected, creating admin user...');
           await createAdminUser();
+          console.log('Admin user created/verified, looking for user...');
           
           const usersCollection = db.collection('users');
           const user = await usersCollection.findOne({ 
@@ -117,17 +142,23 @@ module.exports = async (req, res) => {
             ]
           });
 
-          console.log('User found:', !!user);
+          console.log('User found:', !!user, user ? user.email : 'null');
 
           if (!user) {
-            return res.status(401).json({ error: 'Invalid credentials' });
+            console.log('User not found, returning 401');
+            return res.status(401).json({ error: 'Invalid credentials - user not found' });
           }
 
+          console.log('Comparing password...');
           const isPasswordValid = await bcrypt.compare(password, user.password);
+          console.log('Password valid:', isPasswordValid);
+          
           if (!isPasswordValid) {
-            return res.status(401).json({ error: 'Invalid credentials' });
+            console.log('Password invalid, returning 401');
+            return res.status(401).json({ error: 'Invalid credentials - wrong password' });
           }
 
+          console.log('Creating JWT token...');
           const token = jwt.sign(
             { id: user.id, email: user.email, role: user.role },
             process.env.JWT_SECRET || 'fallback-secret-key',
@@ -147,7 +178,13 @@ module.exports = async (req, res) => {
           });
         } catch (loginError) {
           console.error('Login process error:', loginError);
-          return res.status(500).json({ error: 'Login process failed', details: loginError.message });
+          console.error('Error details:', loginError.message);
+          console.error('Error stack:', loginError.stack);
+          return res.status(500).json({ 
+            error: 'Login process failed', 
+            details: loginError.message,
+            stack: loginError.stack 
+          });
         }
       }
     }
