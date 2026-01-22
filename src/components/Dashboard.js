@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FaSignOutAlt } from 'react-icons/fa';
 import { authService } from '../services/auth';
 
-const Dashboard = ({ user, onLogout, onNavigateToAgendamentos }) => {
+const Dashboard = ({ user, onLogout, onViewChange }) => {
   const [greeting, setGreeting] = useState('');
 
   useEffect(() => {

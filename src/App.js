@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { authService } from './services/auth';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
@@ -9,11 +10,56 @@ import StatusDashboard from './components/StatusDashboard';
 import Admin from './components/Admin';
 import Navbar from './components/Navbar';
 
+// Componente wrapper para sincronizar currentView com a rota
+const AppContent = ({ user, onLogout }) => {
+  const location = useLocation();
+  const [currentView, setCurrentView] = useState('dashboard');
+
+  useEffect(() => {
+    // Extrair a rota atual do hash
+    const hashPath = location.hash.replace('#', '') || '/';
+    const path = hashPath === '/' ? 'dashboard' : hashPath.replace('/', '');
+    setCurrentView(path);
+  }, [location]);
+
+  const handleLogin = async (username, password) => {
+    try {
+      const result = await authService.login(username, password);
+      return result;
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700">
+      <Navbar user={user} onLogout={onLogout} currentView={currentView} />
+      <div className="container mx-auto px-4 py-8">
+        <Routes>
+          <Route path="/" element={<Dashboard user={user} />} />
+          <Route path="/dashboard" element={<Dashboard user={user} />} />
+          <Route path="/pendentes" element={<AgendamentosPendentes user={user} />} />
+          <Route path="/formulario" element={<FormularioAgendamento user={user} />} />
+          <Route path="/lista" element={<ListaAgendamentos user={user} />} />
+          <Route path="/status" element={<StatusDashboard user={user} onLogout={onLogout} />} />
+          <Route 
+            path="/admin" 
+            element={
+              user.role === 'admin' ? 
+              <Admin user={user} onLogout={onLogout} /> : 
+              <Navigate to="/" replace />
+            } 
+          />
+        </Routes>
+      </div>
+    </div>
+  );
+};
+
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [currentView, setCurrentView] = useState('dashboard');
-  const [formularioData, setFormularioData] = useState(null);
 
   useEffect(() => {
     const initAuth = async () => {
@@ -29,62 +75,21 @@ function App() {
         const currentUser = authService.getCurrentUser();
         if (currentUser) {
           setUser(currentUser);
-        } else {
-          // Token inválido, limpar
-          authService.logout();
         }
       } catch (error) {
-        console.error('Erro ao verificar autenticação:', error);
-        authService.logout();
+        console.error('Erro ao inicializar autenticação:', error);
+        setUser(null);
       } finally {
         setLoading(false);
       }
     };
 
-    // Listener para mudanças no localStorage
-    const handleStorageChange = (e) => {
-      if (e.key === 'token' || e.key === 'user') {
-        if (!authService.isAuthenticated()) {
-          setUser(null);
-        } else {
-          const currentUser = authService.getCurrentUser();
-          setUser(currentUser);
-        }
-      }
-    };
-
     initAuth();
-    window.addEventListener('storage', handleStorageChange);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
   }, []);
-
-  const handleLogin = async (email, password) => {
-    try {
-      const result = await authService.login(email, password);
-      setUser(result.user);
-      return result;
-    } catch (error) {
-      console.error('Erro no login:', error);
-      throw error;
-    }
-  };
 
   const handleLogout = () => {
     authService.logout();
     setUser(null);
-    setCurrentView('dashboard');
-  };
-
-  const handleViewChange = (view) => {
-    setCurrentView(view);
-  };
-
-  const handleNavigateToFormulario = (data) => {
-    setFormularioData(data);
-    setCurrentView('formulario');
   };
 
   if (loading) {
@@ -98,65 +103,24 @@ function App() {
     );
   }
 
-  if (!user) {
-    return <Login onLogin={handleLogin} />;
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700">
-      <Navbar 
-        user={user} 
-        currentView={currentView}
-        onViewChange={handleViewChange}
-        onLogout={handleLogout}
-      />
-      
-      {currentView === 'dashboard' && (
-        <Dashboard 
-          user={user} 
-          onLogout={handleLogout}
-          onNavigateToAgendamentos={() => setCurrentView('pendentes')}
+    <Router>
+      <Routes>
+        <Route 
+          path="/login" 
+          element={
+            user ? <Navigate to="/" replace /> : <Login onLogin={(result) => setUser(result.user)} />
+          } 
         />
-      )}
-      
-      {currentView === 'formulario' && (
-        <FormularioAgendamento 
-          user={user}
-          initialData={formularioData}
-          onAgendamentoCreated={() => {
-            setCurrentView('lista');
-            setFormularioData(null);
-          }}
+        
+        <Route 
+          path="/*" 
+          element={
+            user ? <AppContent user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />
+          } 
         />
-      )}
-      
-      {currentView === 'pendentes' && (
-        <AgendamentosPendentes 
-          user={user}
-          onNavigateToFormulario={handleNavigateToFormulario}
-        />
-      )}
-      
-      {currentView === 'lista' && (
-        <ListaAgendamentos 
-          user={user}
-        />
-      )}
-      
-      {currentView === 'status' && (
-        <StatusDashboard 
-          user={user} 
-          onLogout={handleLogout}
-        />
-      )}
-      
-      {currentView === 'admin' && user?.role === 'admin' && (
-        <Admin 
-          user={user} 
-          onLogout={handleLogout}
-        />
-      )}
-    </div>
+      </Routes>
+    </Router>
   );
 }
 

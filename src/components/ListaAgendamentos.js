@@ -339,7 +339,7 @@ const ListaAgendamentos = ({ user }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700">
+    <div className="min-h-screen">
       <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8">
         <div className="bg-white/10 backdrop-blur-lg rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8 border border-white/20">
           {/* Filtros */}

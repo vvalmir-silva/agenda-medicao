@@ -10,6 +10,15 @@ const Navbar = ({ user, currentView, onViewChange, onLogout }) => {
     ...(user.role === 'admin' ? [{ id: 'admin', label: 'Gerenciar Usuários', icon: FaUsers }] : [])
   ];
 
+  const handleNavClick = (viewId) => {
+    if (onViewChange) {
+      onViewChange(viewId);
+    } else {
+      // Fallback: usar navegação direta do HashRouter
+      window.location.hash = `#/${viewId}`;
+    }
+  };
+
   return (
     <nav className="bg-white/10 backdrop-blur-lg border-b border-white/20 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
@@ -29,7 +38,7 @@ const Navbar = ({ user, currentView, onViewChange, onLogout }) => {
               return (
                 <button
                   key={item.id}
-                  onClick={() => onViewChange(item.id)}
+                  onClick={() => handleNavClick(item.id)}
                   className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors duration-200 text-sm ${
                     currentView === item.id
                       ? 'bg-blue-600 text-white'
@@ -50,7 +59,7 @@ const Navbar = ({ user, currentView, onViewChange, onLogout }) => {
               return (
                 <button
                   key={item.id}
-                  onClick={() => onViewChange(item.id)}
+                  onClick={() => handleNavClick(item.id)}
                   className={`flex items-center justify-center w-10 h-10 rounded-lg transition-colors duration-200 ${
                     currentView === item.id
                       ? 'bg-blue-600 text-white'
@@ -80,7 +89,7 @@ const Navbar = ({ user, currentView, onViewChange, onLogout }) => {
                     return (
                       <button
                         key={item.id}
-                        onClick={() => onViewChange(item.id)}
+                        onClick={() => handleNavClick(item.id)}
                         className={`flex items-center space-x-3 w-full px-4 py-3 text-left transition-colors duration-200 ${
                           currentView === item.id
                             ? 'bg-blue-600 text-white'
@@ -123,7 +132,7 @@ const Navbar = ({ user, currentView, onViewChange, onLogout }) => {
               return (
                 <button
                   key={item.id}
-                  onClick={() => onViewChange(item.id)}
+                  onClick={() => handleNavClick(item.id)}
                   className={`flex flex-col items-center justify-center py-2 rounded-lg transition-colors duration-200 ${
                     currentView === item.id
                       ? 'bg-blue-600 text-white'
@@ -153,7 +162,7 @@ const Navbar = ({ user, currentView, onViewChange, onLogout }) => {
                     return (
                       <button
                         key={item.id}
-                        onClick={() => onViewChange(item.id)}
+                        onClick={() => handleNavClick(item.id)}
                         className={`flex items-center space-x-3 w-full px-4 py-3 text-left transition-colors duration-200 ${
                           currentView === item.id
                             ? 'bg-blue-600 text-white'

@@ -323,7 +323,26 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
 // Create Agendamento
 app.post('/api/agendamentos', authenticateToken, async (req, res) => {
   try {
-    const { nomeCliente, loja, data, hora, observacoes, status } = req.body;
+    const { 
+      nomeCliente, 
+      loja, 
+      data, 
+      hora, 
+      observacoes, 
+      status,
+      telefone,
+      email,
+      tipoImovel,
+      ambientes,
+      endereco,
+      cep,
+      numero,
+      complemento,
+      bairro,
+      cidade,
+      estado,
+      servico
+    } = req.body;
 
     if (!nomeCliente || !loja) {
       return res.status(400).json({ error: 'Nome do cliente e loja são obrigatórios' });
@@ -344,6 +363,19 @@ app.post('/api/agendamentos', authenticateToken, async (req, res) => {
       hora: hora || null,
       observacoes: observacoes || '',
       status: status || 'pendente',
+      // Campos adicionais do frontend
+      telefone: telefone || '',
+      email: email || '',
+      tipoImovel: tipoImovel || '',
+      ambientes: ambientes || [],
+      endereco: endereco || '',
+      cep: cep || '',
+      numero: numero || '',
+      complemento: complemento || '',
+      bairro: bairro || '',
+      cidade: cidade || '',
+      estado: estado || '',
+      servico: servico || 'Medição Padrão',
       createdBy: req.user.id,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -361,6 +393,18 @@ app.post('/api/agendamentos', authenticateToken, async (req, res) => {
         data: newAgendamento.data,
         hora: newAgendamento.hora,
         status: newAgendamento.status,
+        telefone: newAgendamento.telefone,
+        email: newAgendamento.email,
+        tipoImovel: newAgendamento.tipoImovel,
+        ambientes: newAgendamento.ambientes,
+        endereco: newAgendamento.endereco,
+        cep: newAgendamento.cep,
+        numero: newAgendamento.numero,
+        complemento: newAgendamento.complemento,
+        bairro: newAgendamento.bairro,
+        cidade: newAgendamento.cidade,
+        estado: newAgendamento.estado,
+        servico: newAgendamento.servico,
         createdAt: newAgendamento.createdAt
       }
     });

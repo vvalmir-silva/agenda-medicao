@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { FaUsers, FaUserPlus, FaTrash, FaEdit, FaEye, FaSearch, FaStore, FaEnvelope, FaKey, FaShieldAlt, FaUser } from 'react-icons/fa';
 import { authService } from '../services/auth';
 
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://agenda-medicao-git-main-vvalmir-silvas-projects.vercel.app'
+const API_BASE_URL = process.env.NODE_ENV === 'production' || window.location.hostname !== 'localhost'
+  ? `${window.location.protocol}//${window.location.hostname}` 
   : 'http://localhost:5000/api';
 
 // Mock users para produção
@@ -56,9 +56,32 @@ const Admin = ({ user, onLogout }) => {
       const token = localStorage.getItem('token');
       console.log('Token:', token ? 'exists' : 'missing');
       
-      // Mock para produção
-      if (process.env.NODE_ENV === 'production') {
-        setUsers(mockUsers);
+      const isProduction = process.env.NODE_ENV === 'production' || window.location.hostname !== 'localhost';
+      
+      // Em produção, usar a API real do Vercel
+      if (isProduction) {
+        console.log('Production Admin - Using real MongoDB data');
+        
+        const response = await fetch(`${API_BASE_URL}/users`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        console.log('Production users response status:', response.status);
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Production users data:', data);
+          setUsers(data);
+        } else {
+          const errorText = await response.text();
+          console.error('Production API Error:', response.status, errorText);
+          if (response.status === 401) {
+            console.error('Unauthorized - token invalid or expired');
+          }
+        }
         setLoading(false);
         return;
       }
@@ -87,7 +110,8 @@ const Admin = ({ user, onLogout }) => {
     } catch (error) {
       console.error('Erro ao buscar usuários:', error);
       // Fallback para mock em produção
-      if (process.env.NODE_ENV === 'production') {
+      const isProduction = process.env.NODE_ENV === 'production' || window.location.hostname !== 'localhost';
+      if (isProduction) {
         setUsers(mockUsers);
       } else {
         setUsers([]); // Set empty array on error
@@ -142,7 +166,10 @@ const Admin = ({ user, onLogout }) => {
     setShowEditModal(true);
   };
 
-  const handleDelete = async (userId) => {
+  const handleDelete = async (user) => {
+    const userId = user._id || user.id;
+    console.log('Deleting user with ID:', userId);
+    
     if (window.confirm('Tem certeza que deseja excluir este usuário?')) {
       try {
         const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
@@ -154,6 +181,8 @@ const Admin = ({ user, onLogout }) => {
 
         if (response.ok) {
           await fetchUsers();
+        } else {
+          console.error('Delete failed:', response.status);
         }
       } catch (error) {
         console.error('Erro ao excluir usuário:', error);
@@ -178,7 +207,7 @@ const Admin = ({ user, onLogout }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700">
+    <div className="min-h-screen">
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-white mb-2 flex items-center">
@@ -212,7 +241,7 @@ const Admin = ({ user, onLogout }) => {
 
         <div className="grid gap-4">
           {filteredUsers.map((user) => (
-            <div key={user._id} className="bg-white/10 backdrop-blur-md rounded-xl p-4 hover:bg-white/20 transition-colors">
+            <div key={user._id || user.id} className="bg-white/10 backdrop-blur-md rounded-xl p-4 hover:bg-white/20 transition-colors">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="flex items-center space-x-4">
                   <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
@@ -252,7 +281,7 @@ const Admin = ({ user, onLogout }) => {
                     <FaEdit />
                   </button>
                   <button
-                    onClick={() => handleDelete(user._id)}
+                    onClick={() => handleDelete(user)}
                     className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg transition-colors"
                     title="Excluir"
                   >

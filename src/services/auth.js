@@ -1,31 +1,36 @@
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://agenda-medicao-git-main-vvalmir-silvas-projects.vercel.app'
+const API_BASE_URL = process.env.NODE_ENV === 'production' || window.location.hostname !== 'localhost'
+  ? `${window.location.protocol}//${window.location.hostname}` 
   : 'http://localhost:5000/api';
 
 export const authService = {
   // Login
   async login(username, password) {
-    // Mock para produção temporariamente
-    if (process.env.NODE_ENV === 'production') {
-      if (username === 'admin' && password === 'admin123') {
-        const mockUser = {
-          token: 'mock-jwt-token-12345',
-          user: {
-            id: 'admin-001',
-            email: 'admin@agenda.com',
-            nome: 'Administrador',
-            role: 'admin'
-          }
-        };
-        
-        // Salvar no localStorage
-        localStorage.setItem('token', mockUser.token);
-        localStorage.setItem('user', JSON.stringify(mockUser.user));
-        
-        return mockUser;
-      } else {
-        throw new Error('Credenciais inválidas');
+    const isProduction = process.env.NODE_ENV === 'production' || window.location.hostname !== 'localhost';
+    
+    // Em produção, usar a API real do Vercel
+    if (isProduction) {
+      console.log('Production Auth - Using real MongoDB authentication');
+      
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Erro ao fazer login');
       }
+
+      const data = await response.json();
+      
+      // Salvar token e usuário no localStorage
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      
+      return data;
     }
     
     // Backend real para desenvolvimento

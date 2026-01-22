@@ -1,5 +1,5 @@
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://agenda-medicao-git-main-vvalmir-silvas-projects.vercel.app'
+const API_BASE_URL = process.env.NODE_ENV === 'production' || window.location.hostname !== 'localhost'
+  ? `${window.location.protocol}//${window.location.hostname}` 
   : 'http://localhost:5000/api';
 
 // Mock data para produção
@@ -43,29 +43,48 @@ export const apiService = {
 
   // Generic request method
   async request(endpoint, options = {}) {
-    // Mock para produção
-    if (process.env.NODE_ENV === 'production') {
-      console.log('Mock API - Production mode');
+    const isProduction = process.env.NODE_ENV === 'production' || window.location.hostname !== 'localhost';
+    console.log('API Request - NODE_ENV:', process.env.NODE_ENV);
+    console.log('API Request - Hostname:', window.location.hostname);
+    console.log('API Request - Is Production:', isProduction);
+    console.log('API Request - Endpoint:', endpoint);
+    
+    // Em produção, usar a API real do Vercel
+    if (isProduction) {
+      console.log('Production API - Using real data from MongoDB');
       
-      // Simular delay de rede
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const url = `${API_BASE_URL}${endpoint}`;
+      const config = {
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.getAuthHeader(),
+          ...options.headers
+        },
+        ...options
+      };
+
+      console.log('Making production request to:', url);
+      console.log('Config:', config);
+
+      const response = await fetch(url, config);
       
-      // Retornar dados mock baseado no endpoint
-      if (endpoint.includes('agendamentos')) {
-        if (options.method === 'POST') {
-          return { success: true, message: 'Agendamento criado com sucesso' };
+      console.log('Production response status:', response.status);
+      
+      if (!response.ok) {
+        const error = await response.json();
+        console.error('Production API Error:', error);
+        
+        // Se o token for inválido, limpar localStorage
+        if (response.status === 401 || response.status === 403 || (response.status === 500 && error.error?.includes('token'))) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          window.location.hash = '/login';
         }
-        if (options.method === 'PUT') {
-          return { success: true, message: 'Agendamento atualizado com sucesso' };
-        }
-        if (options.method === 'DELETE') {
-          return { success: true, message: 'Agendamento excluído com sucesso' };
-        }
-        return mockAgendamentos;
+        
+        throw new Error(error.error || 'Request failed');
       }
-      
-      // Outros endpoints mock
-      return { success: true, data: [] };
+
+      return response.json();
     }
     
     // Backend real para desenvolvimento
@@ -79,7 +98,7 @@ export const apiService = {
       ...options
     };
 
-    console.log('Making request to:', url);
+    console.log('Making dev request to:', url);
     console.log('Config:', config);
 
     const response = await fetch(url, config);
@@ -94,7 +113,8 @@ export const apiService = {
       if (response.status === 401 || response.status === 403 || (response.status === 500 && error.error?.includes('token'))) {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        window.location.href = '/login';
+        // Usar HashRouter format para redirecionamento
+        window.location.hash = '/login';
       }
       
       throw new Error(error.error || 'Request failed');
