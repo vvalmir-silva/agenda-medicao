@@ -168,34 +168,34 @@ function requireAdmin(req, res, next) {
 
 // Main handler
 module.exports = async (req, res) => {
-  // Enable CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, HEAD');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  // Handle empty or root requests
-  if (!req.url || req.url === '/' || req.url === '') {
-    if (req.method === 'HEAD') {
-      return res.status(200).end();
-    }
-    return res.json({ success: true, message: 'API is running' });
-  }
-
-  // Handle direct /login requests (including HEAD from browser extensions)
-  if (req.url === '/login' || req.url.startsWith('/login/')) {
-    if (req.method === 'HEAD') {
-      return res.status(200).end();
-    }
-    if (req.method === 'GET') {
-      return res.json({ success: true, message: 'Login endpoint available' });
-    }
-  }
-
   try {
+    // Enable CORS
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, HEAD');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+
+    // Handle empty or root requests
+    if (!req.url || req.url === '/' || req.url === '') {
+      if (req.method === 'HEAD') {
+        return res.status(200).end();
+      }
+      return res.json({ success: true, message: 'API is running' });
+    }
+
+    // Handle direct /login requests (including HEAD from browser extensions)
+    if (req.url === '/login' || req.url.startsWith('/login/')) {
+      if (req.method === 'HEAD') {
+        return res.status(200).end();
+      }
+      if (req.method === 'GET') {
+        return res.json({ success: true, message: 'Login endpoint available' });
+      }
+    }
+
     // Parse body for POST requests
     if (req.method === 'POST') {
       try {
@@ -531,7 +531,12 @@ module.exports = async (req, res) => {
     
     res.status(404).json({ error: 'Route not found' });
   } catch (error) {
-    console.error('API Error:', error);
-    res.status(500).json({ error: 'Internal server error', details: error.message });
+    console.error('Unhandled API error:', error);
+    console.error('Error stack:', error.stack);
+    return res.status(500).json({ 
+      error: 'Internal server error', 
+      details: error.message,
+      stack: error.stack 
+    });
   }
 };
