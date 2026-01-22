@@ -197,13 +197,26 @@ module.exports = async (req, res) => {
 
   try {
     // Parse body for POST requests
-    if (req.method === 'POST' && !req.body) {
-      req.body = JSON.parse(req.body || '{}');
+    if (req.method === 'POST') {
+      try {
+        if (typeof req.body === 'string') {
+          req.body = JSON.parse(req.body);
+        } else if (!req.body) {
+          req.body = {};
+        }
+      } catch (parseError) {
+        console.error('Body parse error:', parseError);
+        return res.status(400).json({ error: 'Invalid JSON in request body' });
+      }
     }
 
     console.log('API Request:', req.method, req.url, req.body);
 
     const db = await connectToDatabase();
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection failed' });
+    }
+    
     const urlParts = req.url.split('/').filter(part => part); // Remove empty strings
     const path = urlParts[0]; // 'auth', 'users', or 'api'
     const action = urlParts[1]; // 'login', 'register', etc.
@@ -237,42 +250,49 @@ module.exports = async (req, res) => {
           return res.status(400).json({ error: 'Username and password are required' });
         }
 
-        const usersCollection = db.collection('users');
-        const user = await usersCollection.findOne({ 
-          $or: [
-            { nome: username, isActive: true },
-            { email: username, isActive: true }
-          ]
-        });
+        try {
+          const usersCollection = db.collection('users');
+          const user = await usersCollection.findOne({ 
+            $or: [
+              { nome: username, isActive: true },
+              { email: username, isActive: true }
+            ]
+          });
 
-        console.log('User found:', !!user);
+          console.log('User found:', !!user);
 
-        if (!user) {
-          return res.status(401).json({ error: 'Invalid credentials' });
-        }
-
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-        if (!isPasswordValid) {
-          return res.status(401).json({ error: 'Invalid credentials' });
-        }
-
-        const token = jwt.sign(
-          { id: user.id, email: user.email, role: user.role },
-          process.env.JWT_SECRET || 'your-fallback-jwt-secret-key-change-in-production',
-          { expiresIn: '24h' }
-        );
-
-        console.log('Login successful for:', user.nome);
-
-        return res.json({
-          token,
-          user: {
-            id: user.id,
-            email: user.email,
-            nome: user.nome,
-            role: user.role
+          if (!user) {
+            return res.status(401).json({ error: 'Invalid credentials' });
           }
-        });
+
+          const bcrypt = require('bcryptjs');
+          const isPasswordValid = await bcrypt.compare(password, user.password);
+          if (!isPasswordValid) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+          }
+
+          const jwt = require('jsonwebtoken');
+          const token = jwt.sign(
+            { id: user.id, email: user.email, role: user.role },
+            process.env.JWT_SECRET || 'your-fallback-jwt-secret-key-change-in-production',
+            { expiresIn: '24h' }
+          );
+
+          console.log('Login successful for:', user.nome);
+
+          return res.json({
+            token,
+            user: {
+              id: user.id,
+              email: user.email,
+              nome: user.nome,
+              role: user.role
+            }
+          });
+        } catch (loginError) {
+          console.error('Login process error:', loginError);
+          return res.status(500).json({ error: 'Login process failed', details: loginError.message });
+        }
       }
     }
 
