@@ -13,11 +13,6 @@
       "use": "@vercel/node"
     }
   ],
-  "functions": {
-    "api/index.js": {
-      "maxDuration": 10
-    }
-  },
   "rewrites": [
     {
       "source": "/api/(.*)",
