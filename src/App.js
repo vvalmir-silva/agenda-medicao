@@ -11,7 +11,7 @@ import Admin from './components/Admin';
 import Navbar from './components/Navbar';
 
 // Componente wrapper para sincronizar currentView com a rota
-const AppContent = ({ user, onLogout }) => {
+const AppContent = ({ user, onLogout, onLogin }) => {
   const location = useLocation();
   const [currentView, setCurrentView] = useState('dashboard');
 
@@ -21,19 +21,6 @@ const AppContent = ({ user, onLogout }) => {
     const path = hashPath === '/' ? 'dashboard' : hashPath.replace('/', '');
     setCurrentView(path);
   }, [location]);
-
-  const handleLogin = async (username, password) => {
-    try {
-      const result = await authService.login(username, password);
-      if (result && result.user) {
-        setUser(result.user);
-      }
-      return result;
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700">
@@ -90,6 +77,19 @@ function App() {
     initAuth();
   }, []);
 
+  const handleLogin = async (username, password) => {
+    try {
+      const result = await authService.login(username, password);
+      if (result && result.user) {
+        setUser(result.user);
+      }
+      return result;
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
+  };
+
   const handleLogout = () => {
     authService.logout();
     setUser(null);
@@ -119,7 +119,7 @@ function App() {
         <Route 
           path="/*" 
           element={
-            user ? <AppContent user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />
+            user ? <AppContent user={user} onLogout={handleLogout} onLogin={handleLogin} /> : <Navigate to="/login" replace />
           } 
         />
       </Routes>
