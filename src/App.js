@@ -25,6 +25,9 @@ const AppContent = ({ user, onLogout }) => {
   const handleLogin = async (username, password) => {
     try {
       const result = await authService.login(username, password);
+      if (result && result.user) {
+        setUser(result.user);
+      }
       return result;
     } catch (error) {
       console.error('Login error:', error);
@@ -109,7 +112,7 @@ function App() {
         <Route 
           path="/login" 
           element={
-            user ? <Navigate to="/" replace /> : <Login onLogin={(result) => setUser(result.user)} />
+            user ? <Navigate to="/" replace /> : <Login onLogin={handleLogin} />
           } 
         />
         
