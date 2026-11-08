@@ -1,35 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { FaUsers, FaUserPlus, FaTrash, FaEdit, FaEye, FaSearch, FaStore, FaEnvelope, FaKey, FaShieldAlt, FaUser } from 'react-icons/fa';
-import { authService } from '../services/auth';
+import { apiService } from '../services/api';
 
-const API_BASE_URL = process.env.NODE_ENV === 'production' || window.location.hostname !== 'localhost'
-  ? `${window.location.protocol}//${window.location.hostname}` 
-  : 'http://localhost:5000/api';
-
-// Mock users para produção
-const mockUsers = [
-  {
-    id: 'admin-001',
-    nome: 'Administrador',
-    email: 'admin@agenda.com',
-    role: 'admin',
-    ativo: true
-  },
-  {
-    id: 'user-001',
-    nome: 'João Silva',
-    email: 'joao@email.com',
-    role: 'user',
-    ativo: true
-  },
-  {
-    id: 'user-002',
-    nome: 'Maria Santos',
-    email: 'maria@email.com',
-    role: 'user',
-    ativo: true
-  }
-];
+const emptyForm = {
+  nome: '',
+  email: '',
+  senha: '',
+  role: 'user',
+  ativo: true
+};
 
 const Admin = ({ user, onLogout }) => {
   const [users, setUsers] = useState([]);
@@ -38,13 +17,8 @@ const Admin = ({ user, onLogout }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
-  const [formData, setFormData] = useState({
-    nome: '',
-    email: '',
-    senha: '',
-    role: 'user',
-    ativo: true
-  });
+  const [formData, setFormData] = useState(emptyForm);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     fetchUsers();
@@ -53,69 +27,13 @@ const Admin = ({ user, onLogout }) => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      console.log('Token:', token ? 'exists' : 'missing');
-      
-      const isProduction = process.env.NODE_ENV === 'production' || window.location.hostname !== 'localhost';
-      
-      // Em produção, usar a API real do Vercel
-      if (isProduction) {
-        console.log('Production Admin - Using real MongoDB data');
-        
-        const response = await fetch(`${API_BASE_URL}/users`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        console.log('Production users response status:', response.status);
-        
-        if (response.ok) {
-          const data = await response.json();
-          console.log('Production users data:', data);
-          setUsers(data);
-        } else {
-          const errorText = await response.text();
-          console.error('Production API Error:', response.status, errorText);
-          if (response.status === 401) {
-            console.error('Unauthorized - token invalid or expired');
-          }
-        }
-        setLoading(false);
-        return;
-      }
-      
-      const response = await fetch(`${API_BASE_URL}/users`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Users data:', data);
-        setUsers(data);
-      } else {
-        const errorText = await response.text();
-        console.error('API Error:', response.status, errorText);
-        if (response.status === 401) {
-          console.error('Unauthorized - token invalid or expired');
-        }
-      }
+      const data = await apiService.getUsers();
+      setUsers(Array.isArray(data) ? data : []);
+      setErrorMessage('');
     } catch (error) {
       console.error('Erro ao buscar usuários:', error);
-      // Fallback para mock em produção
-      const isProduction = process.env.NODE_ENV === 'production' || window.location.hostname !== 'localhost';
-      if (isProduction) {
-        setUsers(mockUsers);
-      } else {
-        setUsers([]); // Set empty array on error
-      }
+      setErrorMessage(error.message || 'Erro ao carregar usuários');
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -123,34 +41,20 @@ const Admin = ({ user, onLogout }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    try {
-      const url = showEditModal ? `${API_BASE_URL}/users/${selectedUser.id}` : `${API_BASE_URL}/users/register`;
-      const method = showEditModal ? 'PUT' : 'POST';
-      
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(formData)
-      });
 
-      if (response.ok) {
-        await fetchUsers();
-        setShowCreateModal(false);
-        setShowEditModal(false);
-        setFormData({
-          nome: '',
-          email: '',
-          senha: '',
-          role: 'user',
-          ativo: true
-        });
+    try {
+      if (showEditModal) {
+        await apiService.updateUser(selectedUser.id, formData);
+      } else {
+        await apiService.createUser(formData);
       }
+      await fetchUsers();
+      setShowCreateModal(false);
+      setShowEditModal(false);
+      setFormData(emptyForm);
     } catch (error) {
       console.error('Erro ao salvar usuário:', error);
+      window.alert(error.message || 'Erro ao salvar usuário');
     }
   };
 
@@ -167,25 +71,13 @@ const Admin = ({ user, onLogout }) => {
   };
 
   const handleDelete = async (user) => {
-    const userId = user._id || user.id;
-    console.log('Deleting user with ID:', userId);
-    
     if (window.confirm('Tem certeza que deseja excluir este usuário?')) {
       try {
-        const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-
-        if (response.ok) {
-          await fetchUsers();
-        } else {
-          console.error('Delete failed:', response.status);
-        }
+        await apiService.deleteUser(user.id);
+        await fetchUsers();
       } catch (error) {
         console.error('Erro ao excluir usuário:', error);
+        window.alert(error.message || 'Erro ao excluir usuário');
       }
     }
   };
@@ -239,9 +131,15 @@ const Admin = ({ user, onLogout }) => {
           </div>
         </div>
 
+        {errorMessage && (
+          <div className="mb-6 p-4 bg-red-600/20 border border-red-600/30 rounded-lg">
+            <p className="text-red-300 text-sm text-center">{errorMessage}</p>
+          </div>
+        )}
+
         <div className="grid gap-4">
           {filteredUsers.map((user) => (
-            <div key={user._id || user.id} className="bg-white/10 backdrop-blur-md rounded-xl p-4 hover:bg-white/20 transition-colors">
+            <div key={user.id} className="bg-white/10 backdrop-blur-md rounded-xl p-4 hover:bg-white/20 transition-colors">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="flex items-center space-x-4">
                   <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">

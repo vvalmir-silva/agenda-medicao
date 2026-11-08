@@ -69,7 +69,7 @@ const AgendamentosModal = ({ user, onClose }) => {
   };
 
   const filteredAgendamentos = agendamentos.filter(agendamento => {
-    const matchSearch = agendamento.nomeCliente.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchSearch = (agendamento.nomeCliente || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchLoja = !filterLoja || agendamento.loja === filterLoja;
     const matchStatus = agendamento.status === 'pendente'; // Apenas pendentes
     return matchSearch && matchLoja && matchStatus;

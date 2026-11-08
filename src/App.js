@@ -16,10 +16,9 @@ const AppContent = ({ user, onLogout, onLogin }) => {
   const [currentView, setCurrentView] = useState('dashboard');
 
   useEffect(() => {
-    // Extrair a rota atual do hash
-    const hashPath = location.hash.replace('#', '') || '/';
-    const path = hashPath === '/' ? 'dashboard' : hashPath.replace('/', '');
-    setCurrentView(path);
+    // No HashRouter, a rota atual fica em location.pathname (ex.: "/lista")
+    const path = location.pathname.replace(/^\//, '').split('/')[0];
+    setCurrentView(path || 'dashboard');
   }, [location]);
 
   return (
