@@ -218,7 +218,7 @@ async function createSampleAgendamentos() {
         `, [
           agendamento.id, agendamento.nomeCliente, agendamento.loja, agendamento.data,
           agendamento.hora, agendamento.telefone, agendamento.email, agendamento.tipoImovel,
-          JSON.stringify(agendamento.ambientes), agendamento.endereco, agendamento.cep,
+          (agendamento.ambientes || []), agendamento.endereco, agendamento.cep,
           agendamento.numero, agendamento.complemento, agendamento.bairro, agendamento.cidade,
           agendamento.estado, agendamento.servico, agendamento.observacoes, agendamento.status,
           new Date(), new Date()
