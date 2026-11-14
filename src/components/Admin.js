@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { FaUsers, FaUserPlus, FaTrash, FaEdit, FaEye, FaSearch, FaStore, FaEnvelope, FaKey, FaShieldAlt, FaUser } from 'react-icons/fa';
+import { FaUsers, FaUserPlus, FaTrash, FaEdit, FaSearch, FaEnvelope, FaShieldAlt, FaUser } from 'react-icons/fa';
 import { apiService } from '../services/api';
+import { PageHeader, Spinner, EmptyState, Alert, Modal } from './ui';
 
 const emptyForm = {
   nome: '',
@@ -87,200 +88,176 @@ const Admin = ({ user, onLogout }) => {
     (user.email && user.email.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  const fecharModal = () => {
+    setShowCreateModal(false);
+    setShowEditModal(false);
+    setFormData(emptyForm);
+  };
+
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400"></div>
-          <p className="text-white mt-4">Carregando usuários...</p>
-        </div>
-      </div>
-    );
+    return <Spinner label="Carregando usuários..." />;
   }
 
   return (
-    <div className="min-h-screen">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2 flex items-center">
-            <FaUsers className="mr-3 text-blue-400" />
-            Gerenciar Usuários
-          </h1>
-          <p className="text-gray-300">Administração de usuários do sistema</p>
+    <div>
+      <PageHeader icon={FaUsers} title="Gerenciar Usuários" subtitle="Administração de usuários do sistema">
+        <button type="button" onClick={() => setShowCreateModal(true)} className="btn btn-primary w-full sm:w-auto">
+          <FaUserPlus />
+          Novo usuário
+        </button>
+      </PageHeader>
+
+      <div className="relative mb-4 lg:max-w-xl">
+        <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        <input
+          type="search"
+          aria-label="Buscar usuários"
+          placeholder="Buscar usuários..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="field pl-10"
+        />
+      </div>
+
+      {errorMessage && (
+        <div className="mb-4">
+          <Alert>{errorMessage}</Alert>
         </div>
+      )}
 
-        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 mb-6">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="relative flex-1 max-w-md">
-              <FaSearch className="absolute left-3 top-3 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Buscar usuários..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-white/20 border border-white/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center transition-colors"
-            >
-              <FaUserPlus className="mr-2" />
-              Novo Usuário
-            </button>
-          </div>
+      {filteredUsers.length === 0 ? (
+        <div className="card">
+          <EmptyState icon={FaUsers}>Nenhum usuário encontrado</EmptyState>
         </div>
-
-        {errorMessage && (
-          <div className="mb-6 p-4 bg-red-600/20 border border-red-600/30 rounded-lg">
-            <p className="text-red-300 text-sm text-center">{errorMessage}</p>
-          </div>
-        )}
-
-        <div className="grid gap-4">
+      ) : (
+        <ul className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
           {filteredUsers.map((user) => (
-            <div key={user.id} className="bg-white/10 backdrop-blur-md rounded-xl p-4 hover:bg-white/20 transition-colors">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
-                    <FaUser className="text-white text-xl" />
+            <li key={user.id} className="card p-4">
+              <div className="flex items-start gap-3">
+                <span className="flex items-center justify-center w-11 h-11 bg-blue-600 rounded-full shrink-0">
+                  <FaUser className="text-white text-lg" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-white font-semibold break-words">{user.nome}</h2>
+                  <p className="flex items-center gap-1.5 text-slate-300 text-sm min-w-0">
+                    <FaEnvelope className="text-xs shrink-0" />
+                    <span className="truncate">{user.email}</span>
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border ${
+                      user.role === 'admin'
+                        ? 'bg-purple-500/20 text-purple-300 border-purple-500/30'
+                        : 'bg-green-500/20 text-green-300 border-green-500/30'
+                    }`}>
+                      <FaShieldAlt className="text-xs" />
+                      {user.role === 'admin' ? 'Administrador' : 'Usuário'}
+                    </span>
+                    <span className={`px-2 py-1 rounded text-xs font-medium border ${
+                      user.ativo
+                        ? 'bg-green-500/20 text-green-300 border-green-500/30'
+                        : 'bg-red-500/20 text-red-300 border-red-500/30'
+                    }`}>
+                      {user.ativo ? 'Ativo' : 'Inativo'}
+                    </span>
                   </div>
-                  <div>
-                    <h3 className="text-white font-semibold">{user.nome}</h3>
-                    <p className="text-gray-300 text-sm flex items-center">
-                      <FaEnvelope className="mr-1 text-xs" />
-                      {user.email}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        user.role === 'admin' 
-                          ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                          : 'bg-green-500/20 text-green-300 border border-green-500/30'
-                      }`}>
-                        <FaShieldAlt className="inline mr-1 text-xs" />
-                        {user.role === 'admin' ? 'Administrador' : 'Usuário'}
-                      </span>
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        user.ativo 
-                          ? 'bg-green-500/20 text-green-300 border border-green-500/30'
-                          : 'bg-red-500/20 text-red-300 border border-red-500/30'
-                      }`}>
-                        {user.ativo ? 'Ativo' : 'Inativo'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => handleEdit(user)}
-                    className="bg-yellow-500 hover:bg-yellow-600 text-white p-2 rounded-lg transition-colors"
-                    title="Editar"
-                  >
-                    <FaEdit />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(user)}
-                    className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg transition-colors"
-                    title="Excluir"
-                  >
-                    <FaTrash />
-                  </button>
                 </div>
               </div>
-            </div>
+              <div className="grid grid-cols-2 gap-2 mt-3 sm:flex sm:justify-end">
+                <button type="button" onClick={() => handleEdit(user)} className="btn btn-neutral text-sm">
+                  <FaEdit />
+                  Editar
+                </button>
+                <button type="button" onClick={() => handleDelete(user)} className="btn btn-neutral text-sm text-red-300">
+                  <FaTrash />
+                  Excluir
+                </button>
+              </div>
+            </li>
           ))}
-        </div>
+        </ul>
+      )}
 
-        {(showCreateModal || showEditModal) && (
-          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
-              <h2 className="text-2xl font-bold mb-6 text-gray-800">
-                {showEditModal ? 'Editar Usuário' : 'Novo Usuário'}
-              </h2>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.nome || ''}
-                    onChange={(e) => setFormData({...formData, nome: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                  <input
-                    type="email"
-                    required
-                    value={formData.email || ''}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Senha {showEditModal && '(deixe em branco para manter atual)'}
-                  </label>
-                  <input
-                    type="password"
-                    required={!showEditModal}
-                    value={formData.senha || ''}
-                    onChange={(e) => setFormData({...formData, senha: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Função</label>
-                  <select
-                    value={formData.role}
-                    onChange={(e) => setFormData({...formData, role: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="user">Usuário</option>
-                    <option value="admin">Administrador</option>
-                  </select>
-                </div>
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="ativo"
-                    checked={formData.ativo || false}
-                    onChange={(e) => setFormData({...formData, ativo: e.target.checked})}
-                    className="mr-2"
-                  />
-                  <label htmlFor="ativo" className="text-sm font-medium text-gray-700">Usuário Ativo</label>
-                </div>
-                <div className="flex space-x-3 pt-4">
-                  <button
-                    type="submit"
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors"
-                  >
-                    {showEditModal ? 'Atualizar' : 'Criar'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowCreateModal(false);
-                      setShowEditModal(false);
-                      setFormData({
-                        nome: '',
-                        email: '',
-                        senha: '',
-                        role: 'user',
-                        ativo: true
-                      });
-                    }}
-                    className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-2 rounded-lg transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </form>
+      {(showCreateModal || showEditModal) && (
+        <Modal
+          title={showEditModal ? 'Editar Usuário' : 'Novo Usuário'}
+          icon={showEditModal ? FaEdit : FaUserPlus}
+          size="sm:max-w-md"
+          onClose={fecharModal}
+          footer={
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
+              <button type="button" onClick={fecharModal} className="btn btn-neutral">
+                Cancelar
+              </button>
+              <button type="submit" form="form-usuario" className="btn btn-primary">
+                {showEditModal ? 'Atualizar' : 'Criar'}
+              </button>
             </div>
-          </div>
-        )}
-      </div>
+          }
+        >
+          <form id="form-usuario" onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="usuario-nome" className="field-label">Nome</label>
+              <input
+                id="usuario-nome"
+                type="text"
+                required
+                autoComplete="name"
+                value={formData.nome || ''}
+                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                className="field"
+              />
+            </div>
+            <div>
+              <label htmlFor="usuario-email" className="field-label">Email</label>
+              <input
+                id="usuario-email"
+                type="email"
+                required
+                inputMode="email"
+                autoComplete="email"
+                value={formData.email || ''}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                className="field"
+              />
+            </div>
+            <div>
+              <label htmlFor="usuario-senha" className="field-label">
+                Senha {showEditModal && <span className="font-normal text-slate-400">(deixe em branco para manter a atual)</span>}
+              </label>
+              <input
+                id="usuario-senha"
+                type="password"
+                required={!showEditModal}
+                autoComplete="new-password"
+                value={formData.senha || ''}
+                onChange={(e) => setFormData({ ...formData, senha: e.target.value })}
+                className="field"
+              />
+            </div>
+            <div>
+              <label htmlFor="usuario-role" className="field-label">Função</label>
+              <select
+                id="usuario-role"
+                value={formData.role}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                className="field"
+              >
+                <option value="user">Usuário</option>
+                <option value="admin">Administrador</option>
+              </select>
+            </div>
+            <label className="flex items-center gap-3 min-h-[44px] text-sm font-medium text-slate-200 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.ativo || false}
+                onChange={(e) => setFormData({ ...formData, ativo: e.target.checked })}
+                className="w-5 h-5 rounded accent-blue-600"
+              />
+              Usuário ativo
+            </label>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 };

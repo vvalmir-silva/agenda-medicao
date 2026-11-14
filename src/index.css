@@ -2,7 +2,92 @@
 @tailwind components;
 @tailwind utilities;
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-slate-900 text-slate-100 antialiased;
+  }
+
+  /* 16px nos campos evita o zoom automático do iOS ao focar */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  input[type='date'],
+  input[type='time'] {
+    color-scheme: dark;
+  }
+
+  code {
+    font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+  }
+}
+
+@layer components {
+  /* Altura total da tela, considerando a barra do navegador no celular */
+  .min-h-app {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  .card {
+    @apply bg-white/10 backdrop-blur-lg border border-white/15 rounded-2xl;
+  }
+
+  .field {
+    @apply block w-full min-h-[44px] px-3 py-2.5 bg-slate-800/80 border border-slate-600 rounded-lg text-white placeholder-slate-400 transition focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent;
+  }
+
+  .field-label {
+    @apply block text-sm font-medium text-slate-300 mb-1.5;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 min-h-[44px] px-4 py-2 rounded-lg font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply bg-blue-600 hover:bg-blue-700 text-white;
+  }
+
+  .btn-success {
+    @apply bg-green-600 hover:bg-green-700 text-white;
+  }
+
+  .btn-danger {
+    @apply bg-red-600 hover:bg-red-700 text-white;
+  }
+
+  .btn-neutral {
+    @apply bg-white/10 hover:bg-white/20 text-slate-100 border border-white/15;
+  }
+
+  /* Botão só com ícone: área de toque de 44px */
+  .btn-icon {
+    @apply inline-flex items-center justify-center w-11 h-11 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400;
+  }
+
+  .modal-panel {
+    max-height: 92vh;
+    max-height: 92dvh;
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Rolagem horizontal interna sem barra visível (abas de filtro) */
+  .scroll-x-clean {
+    @apply overflow-x-auto;
+    scrollbar-width: none;
+  }
+
+  .scroll-x-clean::-webkit-scrollbar {
+    display: none;
+  }
 }

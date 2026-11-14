@@ -1,14 +1,46 @@
 import React, { useState, useEffect } from 'react';
-import { FaList, FaSearch, FaTrash, FaDownload, FaEdit, FaEye, FaCalendarAlt, FaStore, FaClock, FaUser, FaExclamationTriangle, FaSave, FaCheckCircle, FaInfoCircle } from 'react-icons/fa';
+import {
+  FaTable, FaSearch, FaTrash, FaDownload, FaEdit, FaEye, FaCalendarAlt, FaStore, FaClock, FaUser, FaPhone,
+  FaMapMarkerAlt, FaExclamationTriangle, FaSave, FaCheckCircle, FaInfoCircle, FaChevronLeft, FaChevronRight
+} from 'react-icons/fa';
 import { apiService } from '../services/api';
+import {
+  LOJAS, ambientesPorTipo, formatDate, dateInputValue, formatEndereco,
+  StatusBadge, PageHeader, Spinner, EmptyState, Modal
+} from './ui';
 
-const ListaAgendamentos = ({ user }) => {
+const ITENS_POR_PAGINA = 10;
+
+const NOMES_DOS_CAMPOS = {
+  nomeCliente: 'nome',
+  telefone: 'telefone',
+  loja: 'loja',
+  data: 'data',
+  hora: 'horário',
+  status: 'status',
+  tipoImovel: 'tipo de imóvel'
+};
+
+const Detalhe = ({ label, children, className = '' }) => (
+  <div className={className}>
+    <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</dt>
+    <dd className="text-white mt-0.5 break-words">{children}</dd>
+  </div>
+);
+
+const Bloco = ({ title, children }) => (
+  <section className="rounded-xl border border-white/10 bg-white/5 p-4">
+    <h3 className="text-base font-semibold text-white mb-3">{title}</h3>
+    {children}
+  </section>
+);
+
+const ListaAgendamentos = () => {
   const [agendamentos, setAgendamentos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedItems, setSelectedItems] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedAgendamento, setSelectedAgendamento] = useState(null);
@@ -23,10 +55,15 @@ const ListaAgendamentos = ({ user }) => {
     fetchAgendamentos();
   }, []);
 
+  // Uma nova busca volta para a primeira página
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
   const fetchAgendamentos = async () => {
     try {
       const data = await apiService.getAgendamentos();
-      setAgendamentos(data);
+      setAgendamentos(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Erro ao carregar agendamentos:', error);
     } finally {
@@ -34,50 +71,50 @@ const ListaAgendamentos = ({ user }) => {
     }
   };
 
-  const filteredAgendamentos = agendamentos.filter(agendamento => {
+  const avisar = (mensagem, tipo = 'error') => {
+    setValidationMessage(mensagem);
+    setValidationType(tipo);
+    setShowValidationError(true);
+  };
+
+  const filteredAgendamentos = agendamentos.filter((agendamento) => {
     const searchLower = searchTerm.toLowerCase();
     return (
       agendamento.nomeCliente?.toLowerCase().includes(searchLower) ||
       agendamento.loja?.toLowerCase().includes(searchLower) ||
       agendamento.telefone?.toLowerCase().includes(searchLower) ||
       agendamento.email?.toLowerCase().includes(searchLower) ||
-      agendamento.status?.toLowerCase().includes(searchLower)
+      agendamento.status?.toLowerCase().includes(searchLower) ||
+      formatEndereco(agendamento.endereco).toLowerCase().includes(searchLower)
     );
   });
 
-  const totalPages = Math.ceil(filteredAgendamentos.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
+  const totalPages = Math.max(1, Math.ceil(filteredAgendamentos.length / ITENS_POR_PAGINA));
+  const paginaAtual = Math.min(currentPage, totalPages);
+  const startIndex = (paginaAtual - 1) * ITENS_POR_PAGINA;
+  const endIndex = startIndex + ITENS_POR_PAGINA;
   const currentItems = filteredAgendamentos.slice(startIndex, endIndex);
+  const todosSelecionados = currentItems.length > 0 && currentItems.every((item) => selectedItems.includes(item.id));
 
   const handleSelectAll = () => {
-    if (selectedItems.length === currentItems.length) {
-      setSelectedItems([]);
-    } else {
-      setSelectedItems(currentItems.map(item => item.id));
-    }
+    setSelectedItems(todosSelecionados ? [] : currentItems.map((item) => item.id));
   };
 
   const handleSelectItem = (id) => {
-    setSelectedItems(prev => 
-      prev.includes(id) 
-        ? prev.filter(item => item !== id)
-        : [...prev, id]
-    );
+    setSelectedItems((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
   };
 
   const handleDeleteSelected = async () => {
     if (selectedItems.length === 0) return;
-    
-    if (confirm(`Tem certeza que deseja excluir ${selectedItems.length} agendamento(s)?`)) {
+
+    if (window.confirm(`Tem certeza que deseja excluir ${selectedItems.length} agendamento(s)?`)) {
       try {
-        await Promise.all(
-          selectedItems.map(id => apiService.deleteAgendamento(id))
-        );
+        await Promise.all(selectedItems.map((id) => apiService.deleteAgendamento(id)));
         setSelectedItems([]);
         fetchAgendamentos();
       } catch (error) {
         console.error('Erro ao excluir agendamentos:', error);
+        avisar(`Erro ao excluir: ${error.message || 'Erro desconhecido'}`);
       }
     }
   };
@@ -85,7 +122,7 @@ const ListaAgendamentos = ({ user }) => {
   const handleExport = () => {
     const csvContent = [
       ['Nome do Cliente', 'Loja', 'Data', 'Horário', 'Status', 'Telefone', 'Email'],
-      ...filteredAgendamentos.map(item => [
+      ...filteredAgendamentos.map((item) => [
         item.nomeCliente || '',
         item.loja || '',
         item.data || '',
@@ -94,7 +131,7 @@ const ListaAgendamentos = ({ user }) => {
         item.telefone || '',
         item.email || ''
       ])
-    ].map(row => row.join(',')).join('\n');
+    ].map((row) => row.join(',')).join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -107,6 +144,7 @@ const ListaAgendamentos = ({ user }) => {
 
   const handleEdit = (agendamento) => {
     setSelectedAgendamento(agendamento);
+    setCepMessage('');
     setShowEditModal(true);
   };
 
@@ -115,153 +153,94 @@ const ListaAgendamentos = ({ user }) => {
     setShowViewModal(true);
   };
 
-  const handleUpdateAgendamento = async (updatedData) => {
+  const handleUpdateStatus = async (id, status) => {
     try {
-      console.log('=== INÍCIO DA ATUALIZAÇÃO ===');
-      console.log('ID do agendamento:', selectedAgendamento.id);
-      console.log('Dados atualizados:', updatedData);
-      
-      // Validação rigorosa - apenas observações pode ser nulo
-      const camposObrigatorios = [
-        'nomeCliente',
-        'telefone', 
-        'loja',
-        'data',
-        'hora',
-        'status',
-        'tipoImovel'
-      ];
-      
-      const camposVazios = camposObrigatorios.filter(campo => 
-        !updatedData[campo] || updatedData[campo].trim() === ''
-      );
-      
-      if (camposVazios.length > 0) {
-        setValidationMessage(`Os seguintes campos são obrigatórios: ${camposVazios.join(', ')}`);
-        setValidationType('error');
-        setShowValidationError(true);
-        return;
-      }
-      
-      // Validar ambientes
-      if (!updatedData.ambientes || updatedData.ambientes.length === 0) {
-        setValidationMessage('Selecione pelo menos um ambiente');
-        setValidationType('error');
-        setShowValidationError(true);
-        return;
-      }
-      
-      // Validar endereço
-      if (!updatedData.endereco) {
-        setValidationMessage('Endereço é obrigatório');
-        setValidationType('error');
-        setShowValidationError(true);
-        return;
-      }
-      
-      if (!updatedData.endereco.cep || updatedData.endereco.cep.trim() === '') {
-        setValidationMessage('CEP é obrigatório');
-        setValidationType('error');
-        setShowValidationError(true);
-        return;
-      }
-      
-      if (!updatedData.endereco.numero || updatedData.endereco.numero.trim() === '') {
-        setValidationMessage('Número do endereço é obrigatório');
-        setValidationType('error');
-        setShowValidationError(true);
-        return;
-      }
-      
-      // Validar formato do CEP (8 dígitos)
-      const cepLimpo = updatedData.endereco.cep.replace(/\D/g, '');
-      if (cepLimpo.length !== 8) {
-        setValidationMessage('CEP deve ter 8 dígitos');
-        setValidationType('error');
-        setShowValidationError(true);
-        return;
-      }
-      
-      // Preparar dados para envio
-      const dataToSend = {
-        nomeCliente: updatedData.nomeCliente.trim(),
-        telefone: updatedData.telefone.trim(),
-        loja: updatedData.loja.trim(),
-        data: updatedData.data,
-        hora: updatedData.hora,
-        status: updatedData.status,
-        tipoImovel: updatedData.tipoImovel,
-        ambientes: updatedData.ambientes,
-        observacoes: updatedData.observacoes || '', // Único campo que pode ser nulo
-        endereco: {
-          cep: updatedData.endereco.cep.replace(/\D/g, ''), // Apenas números
-          logradouro: updatedData.endereco.logradouro || '',
-          numero: updatedData.endereco.numero.trim(),
-          complemento: updatedData.endereco.complemento || '',
-          bairro: updatedData.endereco.bairro || '',
-          cidade: updatedData.endereco.cidade || ''
-        }
-      };
-
-      console.log('Dados formatados para API:', dataToSend);
-      
-      // Armazenar dados pendentes e mostrar popup de confirmação
-      setPendingUpdate({ id: selectedAgendamento.id, data: dataToSend });
-      setShowConfirmModal(true);
-      
+      await apiService.updateAgendamento(id, { status });
+      setShowViewModal(false);
+      fetchAgendamentos();
     } catch (error) {
-      console.error('=== ERRO NA ATUALIZAÇÃO ===');
-      console.error('Erro completo:', error);
-      setValidationMessage('Erro ao validar dados. Tente novamente.');
-      setValidationType('error');
-      setShowValidationError(true);
+      console.error('Erro ao atualizar status:', error);
+      avisar(`Erro ao atualizar status: ${error.message || 'Erro desconhecido'}`);
     }
+  };
+
+  const editar = (patch) => setSelectedAgendamento((prev) => ({ ...prev, ...patch }));
+  const editarEndereco = (patch) =>
+    setSelectedAgendamento((prev) => ({ ...prev, endereco: { ...(prev.endereco || {}), ...patch } }));
+
+  const handleUpdateAgendamento = (updatedData) => {
+    // Apenas observações e complemento podem ficar vazios
+    const camposVazios = Object.keys(NOMES_DOS_CAMPOS).filter(
+      (campo) => !updatedData[campo] || String(updatedData[campo]).trim() === ''
+    );
+
+    if (camposVazios.length > 0) {
+      avisar(`Preencha os campos obrigatórios: ${camposVazios.map((c) => NOMES_DOS_CAMPOS[c]).join(', ')}`);
+      return;
+    }
+    if (!updatedData.ambientes || updatedData.ambientes.length === 0) {
+      avisar('Selecione pelo menos um ambiente');
+      return;
+    }
+    if (!updatedData.endereco) {
+      avisar('Endereço é obrigatório');
+      return;
+    }
+    if (!updatedData.endereco.cep || String(updatedData.endereco.cep).trim() === '') {
+      avisar('CEP é obrigatório');
+      return;
+    }
+    if (!updatedData.endereco.numero || String(updatedData.endereco.numero).trim() === '') {
+      avisar('Número do endereço é obrigatório');
+      return;
+    }
+    if (String(updatedData.endereco.cep).replace(/\D/g, '').length !== 8) {
+      avisar('CEP deve ter 8 dígitos');
+      return;
+    }
+
+    const dataToSend = {
+      nomeCliente: updatedData.nomeCliente.trim(),
+      telefone: updatedData.telefone.trim(),
+      loja: updatedData.loja.trim(),
+      data: dateInputValue(updatedData.data) || updatedData.data,
+      hora: updatedData.hora,
+      status: updatedData.status,
+      tipoImovel: updatedData.tipoImovel,
+      ambientes: updatedData.ambientes,
+      observacoes: updatedData.observacoes || '',
+      endereco: {
+        cep: String(updatedData.endereco.cep).replace(/\D/g, ''),
+        logradouro: updatedData.endereco.logradouro || '',
+        numero: String(updatedData.endereco.numero).trim(),
+        complemento: updatedData.endereco.complemento || '',
+        bairro: updatedData.endereco.bairro || '',
+        cidade: updatedData.endereco.cidade || ''
+      }
+    };
+
+    // Guarda os dados e pede confirmação antes de salvar
+    setPendingUpdate({ id: selectedAgendamento.id, data: dataToSend });
+    setShowConfirmModal(true);
   };
 
   const confirmUpdate = async () => {
     try {
-      console.log('=== CONFIRMANDO ATUALIZAÇÃO ===');
-      console.log('ID específico:', pendingUpdate?.id);
-      console.log('É o ObjectID 696d8bccf4fcc12a75e2ab63?', pendingUpdate?.id === '696d8bccf4fcc12a75e2ab63');
-      console.log('Dados pendentes:', pendingUpdate?.data);
-      
-      // Verificar se está cancelando
       const isCanceling = pendingUpdate?.data?.status === 'cancelado';
-      console.log('Está cancelando agendamento?', isCanceling);
-      
-      // Log detalhado dos dados
-      console.log('Dados completos para enviar:', JSON.stringify(pendingUpdate?.data, null, 2));
-      
-      const response = await apiService.updateAgendamento(pendingUpdate.id, pendingUpdate.data);
-      console.log('Resposta da API:', response);
-      console.log('Status da resposta:', response?.status);
-      console.log('Dados retornados:', response?.data);
-      
+      await apiService.updateAgendamento(pendingUpdate.id, pendingUpdate.data);
+
       setShowConfirmModal(false);
       setShowEditModal(false);
       setPendingUpdate(null);
       fetchAgendamentos();
-      
-      console.log('=== ATUALIZAÇÃO CONCLUÍDA ===');
-      
-      // Feedback especial para cancelamento
+
       if (isCanceling) {
-        setValidationMessage('Agendamento cancelado com sucesso!');
-        setValidationType('success');
-        setShowValidationError(true);
-      } else {
-        console.log('Agendamento atualizado com sucesso!');
+        avisar('Agendamento cancelado com sucesso!', 'success');
       }
     } catch (error) {
-      console.error('=== ERRO AO SALVAR ===');
-      console.error('Erro completo:', error);
-      console.error('Status do erro:', error.response?.status);
-      console.error('Mensagem do servidor:', error.response?.data);
-      console.error('Stack do erro:', error.stack);
-      
-      setValidationMessage(`Erro ao salvar: ${error.message || 'Erro desconhecido'}`);
-      setValidationType('error');
-      setShowValidationError(true);
+      console.error('Erro ao salvar agendamento:', error);
+      setShowConfirmModal(false);
+      avisar(`Erro ao salvar: ${error.message || 'Erro desconhecido'}`);
     }
   };
 
@@ -276,791 +255,643 @@ const ListaAgendamentos = ({ user }) => {
     setValidationType('error');
   };
 
+  const mostrarMensagemCep = (texto) => {
+    setCepMessage(texto);
+    setTimeout(() => setCepMessage(''), 3000);
+  };
+
   const buscarEndereco = async () => {
-    if (!selectedAgendamento.endereco?.cep || selectedAgendamento.endereco.cep.length < 8) {
-      setCepMessage('CEP deve ter 8 dígitos');
-      setTimeout(() => setCepMessage(''), 3000);
+    const cep = String(selectedAgendamento.endereco?.cep || '').replace(/\D/g, '');
+    if (cep.length !== 8) {
+      mostrarMensagemCep('CEP deve ter 8 dígitos');
       return;
     }
-    
+
     try {
-      const cep = selectedAgendamento.endereco.cep.replace(/\D/g, '');
       const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
       const data = await response.json();
-      
+
       if (!data.erro) {
-        setSelectedAgendamento(prev => ({
-          ...prev,
-          endereco: {
-            ...prev.endereco,
-            logradouro: data.logradouro,
-            bairro: data.bairro,
-            cidade: data.localidade
-          }
-        }));
-        setCepMessage('CEP encontrado! Endereço preenchido.');
-        setTimeout(() => setCepMessage(''), 3000);
+        editarEndereco({ logradouro: data.logradouro, bairro: data.bairro, cidade: data.localidade });
+        mostrarMensagemCep('CEP encontrado! Endereço preenchido.');
       } else {
-        setCepMessage('CEP não encontrado');
-        setTimeout(() => setCepMessage(''), 3000);
+        mostrarMensagemCep('CEP não encontrado');
       }
     } catch (error) {
       console.error('Erro ao buscar CEP:', error);
-      setCepMessage('Erro ao buscar CEP');
-      setTimeout(() => setCepMessage(''), 3000);
+      mostrarMensagemCep('Erro ao buscar CEP');
     }
-  };
-
-  const getStatusColor = (status) => {
-    switch(status) {
-      case 'pendente': return 'bg-yellow-100 text-yellow-800';
-      case 'confirmado': return 'bg-green-100 text-green-800';
-      case 'cancelado': return 'bg-red-100 text-red-800';
-      case 'concluido': return 'bg-blue-100 text-blue-800';
-      case 'agendar': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return 'Sem data';
-    return new Date(dateStr).toLocaleDateString('pt-BR');
   };
 
   if (loading) {
-    return (
-      <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="text-gray-600 mt-4">Carregando agendamentos...</p>
-        </div>
-      </div>
-    );
+    return <Spinner label="Carregando agendamentos..." />;
   }
 
+  const total = filteredAgendamentos.length;
+
   return (
-    <div className="min-h-screen">
-      <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8">
-        <div className="bg-white/10 backdrop-blur-lg rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8 border border-white/20">
-          {/* Filtros */}
-          <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-white/5 rounded-lg border border-white/10">
-            <div className="max-w-md">
-              <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-2">Buscar:</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Buscar por nome, endereço, telefone, email, loja..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full px-3 py-2 pl-10 text-sm border border-slate-600 rounded-lg focus:border-blue-400 focus:ring focus:ring-blue-200 bg-slate-800 text-white placeholder-slate-400"
-                />
-                <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
-              </div>
-            </div>
-          </div>
+    <div>
+      <PageHeader
+        icon={FaTable}
+        title="Agendamentos"
+        subtitle={
+          total === 0
+            ? 'Nenhum agendamento'
+            : `Mostrando ${startIndex + 1} a ${Math.min(endIndex, total)} de ${total}`
+        }
+      >
+        <button type="button" onClick={handleExport} className="btn btn-success flex-1 sm:flex-none">
+          <FaDownload />
+          Exportar
+        </button>
+        <button
+          type="button"
+          onClick={handleDeleteSelected}
+          disabled={selectedItems.length === 0}
+          className="btn btn-danger flex-1 sm:flex-none"
+        >
+          <FaTrash />
+          Excluir{selectedItems.length > 0 ? ` (${selectedItems.length})` : ''}
+        </button>
+      </PageHeader>
 
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-4">
-            <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white">
-              <FaList className="inline mr-2 sm:mr-3 text-blue-400" />
-              <span className="block sm:inline">Agendamentos</span>
-            </h2>
-          
-          {/* Ações em lote */}
-          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-            <button
-              onClick={handleDeleteSelected}
-              disabled={selectedItems.length === 0}
-              className="px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-xs sm:text-sm font-medium transition-all flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <FaTrash className="mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Excluir Selecionados</span>
-              <span className="sm:hidden">Excluir</span>
-            </button>
-            <button
-              onClick={handleExport}
-              className="px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xs sm:text-sm font-medium transition-all flex items-center justify-center"
-            >
-              <FaDownload className="mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Exportar</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Controles de seleção */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={selectedItems.length === currentItems.length && currentItems.length > 0}
-              onChange={handleSelectAll}
-              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-            />
-            <label className="text-sm font-medium text-gray-700">
-              Selecionar todos ({selectedItems.length})
-            </label>
-          </div>
-          <div className="text-xs sm:text-sm text-gray-600">
-            Mostrando {startIndex + 1} a {Math.min(endIndex, filteredAgendamentos.length)} de {filteredAgendamentos.length} agendamentos
-          </div>
-        </div>
-
-        {/* Tabela responsiva */}
-        <div className="overflow-x-auto -mx-2 sm:-mx-4">
-          <div className="inline-block min-w-full align-middle">
-            <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-              <table className="w-full">
-                <thead className="bg-white/5">
-                  <tr>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                      Cliente
-                    </th>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-white uppercase tracking-wider hidden sm:table-cell">
-                      Loja
-                    </th>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-white uppercase tracking-wider hidden md:table-cell">
-                      Data
-                    </th>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-white uppercase tracking-wider hidden lg:table-cell">
-                      Endereço
-                    </th>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-white uppercase tracking-wider hidden lg:table-cell">
-                      Loja
-                    </th>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                      Ações
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/10">
-                  {filteredAgendamentos.map((agendamento) => (
-                    <tr key={agendamento.id} className="hover:bg-white/5">
-                      <td className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-600/20 rounded-full flex items-center justify-center mr-2 sm:mr-3">
-                            <FaUser className="text-blue-300 text-xs sm:text-sm" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="text-xs sm:text-sm font-medium text-white truncate">{agendamento.nomeCliente}</div>
-                            <div className="text-xs text-gray-400 truncate">{agendamento.telefone}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap hidden sm:table-cell">
-                        <div className="flex items-center">
-                          <FaStore className="text-gray-400 mr-1 sm:mr-2 text-xs" />
-                          <span className="text-xs sm:text-sm text-gray-300 truncate">{agendamento.loja}</span>
-                        </div>
-                      </td>
-                      <td className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap hidden md:table-cell">
-                        <div className="text-xs sm:text-sm text-gray-300">
-                          <div className="flex items-center">
-                            <FaCalendarAlt className="mr-1 text-gray-400 text-xs" />
-                            {formatDate(agendamento.data)}
-                          </div>
-                          {agendamento.hora && (
-                            <div className="flex items-center mt-1">
-                              <FaClock className="mr-1 text-gray-400 text-xs" />
-                              {agendamento.hora}
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap hidden lg:table-cell">
-                        <div className="text-xs sm:text-sm text-gray-300">
-                          <div className="truncate">{agendamento.endereco?.logradouro}, {agendamento.endereco?.numero}</div>
-                          <div className="text-xs text-gray-400 truncate">{agendamento.endereco?.bairro} - {agendamento.endereco?.cidade}</div>
-                        </div>
-                      </td>
-                      <td className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap hidden lg:table-cell">
-                        <div className="flex items-center">
-                          <FaStore className="text-gray-400 mr-1 sm:mr-2 text-xs" />
-                          <span className="text-xs sm:text-sm text-gray-300 truncate">{agendamento.loja}</span>
-                        </div>
-                      </td>
-                      <td className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap">
-                        <span className={`inline-flex px-1 sm:px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(agendamento.status)}`}>
-                          {agendamento.status}
-                        </span>
-                      </td>
-                      <td className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap text-center">
-                        <div className="flex justify-center space-x-1">
-                          <button
-                            onClick={() => handleView(agendamento)}
-                            className="p-1 text-blue-600 hover:text-blue-800 transition-colors"
-                            title="Visualizar"
-                          >
-                            <FaEye className="text-xs sm:text-sm" />
-                          </button>
-                          <button
-                            onClick={() => handleEdit(agendamento)}
-                            className="p-1 text-green-600 hover:text-green-800 transition-colors"
-                            title="Editar"
-                          >
-                            <FaEdit className="text-xs sm:text-sm" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        {/* Paginação */}
-        <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4">
-          <div className="text-xs sm:text-sm text-gray-600">
-            Página {currentPage} de {totalPages}
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-2 text-xs sm:text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <FaCalendarAlt className="inline mr-1" />
-              Anterior
-            </button>
-            <button
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-              className="px-3 py-2 text-xs sm:text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Próxima
-              <FaCalendarAlt className="inline ml-1" />
-            </button>
-          </div>
-        </div>
-
-        {/* Mensagem quando não há agendamentos */}
-        {filteredAgendamentos.length === 0 && (
-          <div className="text-center py-6 sm:py-8">
-            <FaCalendarAlt className="text-2xl sm:text-4xl text-gray-400 mb-3 sm:mb-4 mx-auto" />
-            <p className="text-sm sm:text-base text-gray-500">Nenhum agendamento encontrado</p>
-          </div>
-        )}
+      {/* Busca */}
+      <div className="relative mb-4 lg:max-w-xl">
+        <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        <input
+          type="search"
+          aria-label="Buscar agendamentos"
+          placeholder="Buscar por nome, endereço, telefone, loja..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="field pl-10"
+        />
       </div>
 
-      {/* Modal de Visualização */}
-      {showViewModal && selectedAgendamento && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-2 sm:p-4 z-50">
-          <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl mx-2 sm:mx-4 max-h-[95vh] sm:max-h-[90vh] overflow-hidden border border-slate-600">
-            <div className="bg-blue-600 text-white p-6">
-              <div className="flex justify-between items-center">
-                <h3 className="text-xl font-bold flex items-center">
-                  <FaEye className="mr-3" />
-                  Detalhes do Agendamento
-                </h3>
-                <button
-                  onClick={() => setShowViewModal(false)}
-                  className="text-white hover:text-gray-200 transition-colors p-2 hover:bg-white hover:bg-opacity-20 rounded-lg"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-            
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
-              <div className="space-y-6">
-                {/* Informações do Cliente */}
-                <div className="bg-blue-600/10 p-6 rounded-xl border border-blue-600/30">
-                  <h4 className="text-lg font-semibold text-white mb-4">Informações do Cliente</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-white">Nome</label>
-                      <p className="text-white font-medium">{selectedAgendamento.nomeCliente}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-white">Telefone</label>
-                      <p className="text-white font-medium">{selectedAgendamento.telefone || 'Não informado'}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-white">Status</label>
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedAgendamento.status)}`}>
-                        {selectedAgendamento.status}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Informações do Agendamento */}
-                <div className="bg-green-600/10 p-6 rounded-xl border border-green-600/30">
-                  <h4 className="text-lg font-semibold text-white mb-4">Detalhes do Agendamento</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-white">Loja</label>
-                      <p className="text-white font-medium">{selectedAgendamento.loja}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-white">Data</label>
-                      <p className="text-white font-medium">{formatDate(selectedAgendamento.data)}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-white">Horário</label>
-                      <p className="text-white font-medium">{selectedAgendamento.hora || 'Não definido'}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-white">Tipo de Imóvel</label>
-                      <p className="text-white font-medium">{selectedAgendamento.tipoImovel || 'Não informado'}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-white">Ambientes</label>
-                      <p className="text-white font-medium">
-                        {selectedAgendamento.ambientes && selectedAgendamento.ambientes.length > 0 
-                          ? selectedAgendamento.ambientes.join(', ')
-                          : 'Não informados'
-                        }
-                      </p>
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="text-sm font-medium text-white">Observações</label>
-                      <p className="text-white font-medium">{selectedAgendamento.observacoes || 'Nenhuma'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Endereço */}
-                {selectedAgendamento.endereco && (
-                  <div className="bg-purple-600/10 p-6 rounded-xl border border-purple-600/30">
-                    <h4 className="text-lg font-semibold text-white mb-4">Endereço</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      <div>
-                        <label className="text-sm font-medium text-white">CEP</label>
-                        <p className="text-white font-medium">{selectedAgendamento.endereco.cep}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-white">Logradouro</label>
-                        <p className="text-white font-medium">{selectedAgendamento.endereco.logradouro}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-white">Número</label>
-                        <p className="text-white font-medium">{selectedAgendamento.endereco.numero}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-white">Complemento</label>
-                        <p className="text-white font-medium">{selectedAgendamento.endereco.complemento || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-white">Bairro</label>
-                        <p className="text-white font-medium">{selectedAgendamento.endereco.bairro}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-white">Cidade</label>
-                        <p className="text-white font-medium">{selectedAgendamento.endereco.cidade}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            <div className="bg-slate-700 p-6 border-t border-slate-600">
-              <div className="flex space-x-3">
-                {selectedAgendamento.status !== 'concluido' && (
-                  <button
-                    onClick={() => handleUpdateStatus(selectedAgendamento.id, 'concluido')}
-                    className="flex-1 bg-white hover:bg-gray-100 text-gray-800 px-6 py-3 rounded-lg font-medium transition-all border border-gray-300"
-                  >
-                    Concluir Agendamento
-                  </button>
-                )}
-                <button
-                  onClick={() => setShowViewModal(false)}
-                  className={`flex-1 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-all ${
-                    selectedAgendamento.status === 'concluido' ? 'w-full' : ''
-                  }`}
-                >
-                  Fechar
-                </button>
-              </div>
-            </div>
-          </div>
+      {total === 0 ? (
+        <div className="card">
+          <EmptyState icon={FaCalendarAlt}>Nenhum agendamento encontrado</EmptyState>
         </div>
-      )}
-
-      {/* Modal de Edição */}
-      {showEditModal && selectedAgendamento && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-2 sm:p-4 z-50">
-          <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl mx-2 sm:mx-4 max-h-[90vh] sm:max-h-[85vh] overflow-hidden border border-slate-600 flex flex-col">
-            <div className="bg-green-600 text-white p-6">
-              <div className="flex justify-between items-center">
-                <h3 className="text-xl font-bold flex items-center">
-                  <FaEdit className="mr-3" />
-                  Editar Agendamento
-                </h3>
-                <button
-                  onClick={() => setShowEditModal(false)}
-                  className="text-white hover:text-gray-200 transition-colors p-2 hover:bg-white hover:bg-opacity-20 rounded-lg"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-            
-            <div className="p-6 overflow-y-auto flex-1 max-h-[calc(85vh-140px)]">
-              {/* Mensagem CEP */}
-              {cepMessage && (
-                <div className={`mb-4 p-3 rounded-lg text-sm ${
-                  cepMessage.includes('encontrado') 
-                    ? 'bg-green-600/20 text-green-300 border border-green-600/30' 
-                    : 'bg-yellow-600/20 text-yellow-300 border border-yellow-600/30'
-                }`}>
-                  {cepMessage}
-                </div>
-              )}
-              
-              <div className="space-y-6">
-                {/* Informações do Cliente */}
-                <div className="bg-blue-600/10 p-6 rounded-xl border border-blue-600/30">
-                  <h4 className="text-lg font-semibold text-white mb-4">Informações do Cliente</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-white">Nome</label>
-                      <input
-                        type="text"
-                        value={selectedAgendamento.nomeCliente || ''}
-                        onChange={(e) => setSelectedAgendamento({...selectedAgendamento, nomeCliente: e.target.value})}
-                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-white">Telefone</label>
-                      <input
-                        type="text"
-                        value={selectedAgendamento.telefone || ''}
-                        onChange={(e) => setSelectedAgendamento({...selectedAgendamento, telefone: e.target.value})}
-                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-white">Status</label>
-                      <select
-                        value={selectedAgendamento.status || ''}
-                        onChange={(e) => setSelectedAgendamento({...selectedAgendamento, status: e.target.value})}
-                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-                      >
-                        <option value="pendente">Pendente</option>
-                        <option value="confirmado">Confirmado</option>
-                        <option value="concluido">Concluído</option>
-                        <option value="cancelado">Cancelado</option>
-                        <option value="agendar">Agendar</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Informações do Agendamento */}
-                <div className="bg-green-600/10 p-6 rounded-xl border border-green-600/30">
-                  <h4 className="text-lg font-semibold text-white mb-4">Detalhes do Agendamento</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-white">Loja</label>
-                      <select
-                        value={selectedAgendamento.loja || ''}
-                        onChange={(e) => setSelectedAgendamento({...selectedAgendamento, loja: e.target.value})}
-                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-                      >
-                        <option value="">Selecione a loja</option>
-                        <option value="Diana D1">Diana D1</option>
-                        <option value="Diana D2">Diana D2</option>
-                        <option value="Diana D3">Diana D3</option>
-                        <option value="Diana D4">Diana D4</option>
-                        <option value="Marquise Planejados">Marquise Planejados</option>
-                        <option value="By Estilo">By Estilo</option>
-                        <option value="Anfelle">Anfelle</option>
-                        <option value="Planejados">Planejados</option>
-                        <option value="Rassul Planejados">Rassul Planejados</option>
-                        <option value="Miralli Móveis">Miralli Móveis</option>
-                        <option value="Outros">Outros</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-white">Data</label>
-                      <input
-                        type="date"
-                        value={selectedAgendamento.data ? new Date(selectedAgendamento.data).toISOString().split('T')[0] : ''}
-                        onChange={(e) => setSelectedAgendamento({...selectedAgendamento, data: e.target.value})}
-                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-white">Horário</label>
-                      <input
-                        type="time"
-                        value={selectedAgendamento.hora || ''}
-                        onChange={(e) => setSelectedAgendamento({...selectedAgendamento, hora: e.target.value})}
-                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-white">Tipo de Imóvel</label>
-                      <select
-                        value={selectedAgendamento.tipoImovel || ''}
-                        onChange={(e) => setSelectedAgendamento({...selectedAgendamento, tipoImovel: e.target.value})}
-                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-                      >
-                        <option value="">Selecione o tipo</option>
-                        <option value="casa">Casa</option>
-                        <option value="apartamento">Apartamento</option>
-                        <option value="sobrado">Sobrado</option>
-                        <option value="comercial">Comercial</option>
-                      </select>
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="text-sm font-medium text-white">Ambientes</label>
-                      <div className="space-y-2">
-                        {selectedAgendamento.tipoImovel && (
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                            {(selectedAgendamento.tipoImovel === 'casa' ? [
-                              "Sala de Estar", "Sala de Jantar", "Cozinha", "Quarto Principal", 
-                              "Quarto Secundário", "Banheiro Social", "Banheiro Suíte", 
-                              "Área de Serviço", "Garagem", "Jardim", "Varanda"
-                            ] : [
-                              "Sala de Estar", "Sala de Jantar", "Cozinha", "Quarto Principal", 
-                              "Quarto Secundário", "Banheiro Social", "Banheiro Suíte", 
-                              "Área de Serviço", "Varanda Gourmet", "Sacada", "Dormitório"
-                            ]).map(ambiente => (
-                              <label key={ambiente} className="flex items-center space-x-2 text-white">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedAgendamento.ambientes?.includes(ambiente) || false}
-                                  onChange={(e) => {
-                                    const ambientes = selectedAgendamento.ambientes || [];
-                                    if (e.target.checked) {
-                                      setSelectedAgendamento({
-                                        ...selectedAgendamento,
-                                        ambientes: [...ambientes, ambiente]
-                                      });
-                                    } else {
-                                      setSelectedAgendamento({
-                                        ...selectedAgendamento,
-                                        ambientes: ambientes.filter(a => a !== ambiente)
-                                      });
-                                    }
-                                  }}
-                                  className="rounded text-blue-600 focus:ring-blue-500"
-                                />
-                                <span className="text-sm">{ambiente}</span>
-                              </label>
-                            ))}
+      ) : (
+        <>
+          {/* Celular: cartões */}
+          <div className="md:hidden">
+            <label className="flex items-center gap-3 min-h-[44px] px-1 mb-2 text-sm text-slate-300">
+              <input type="checkbox" checked={todosSelecionados} onChange={handleSelectAll} className="w-5 h-5 rounded accent-blue-600" />
+              Selecionar todos desta página
+            </label>
+            <ul className="space-y-3">
+              {currentItems.map((agendamento) => {
+                const endereco = formatEndereco(agendamento.endereco);
+                return (
+                  <li key={agendamento.id} className="card p-4">
+                    <div className="flex items-start gap-3">
+                      <label className="flex items-center justify-center w-8 h-11 -ml-1.5 -mt-1.5 shrink-0">
+                        <input
+                          type="checkbox"
+                          aria-label={`Selecionar ${agendamento.nomeCliente || 'agendamento'}`}
+                          checked={selectedItems.includes(agendamento.id)}
+                          onChange={() => handleSelectItem(agendamento.id)}
+                          className="w-5 h-5 rounded accent-blue-600"
+                        />
+                      </label>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="font-semibold text-white break-words min-w-0">{agendamento.nomeCliente || 'Cliente sem nome'}</p>
+                          <StatusBadge status={agendamento.status} className="shrink-0" />
+                        </div>
+                        <dl className="mt-2 space-y-1 text-sm text-slate-300">
+                          {agendamento.telefone && (
+                            <div className="flex items-center gap-2">
+                              <FaPhone className="text-slate-400 text-xs shrink-0" />
+                              <dd>{agendamento.telefone}</dd>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2">
+                            <FaCalendarAlt className="text-slate-400 text-xs shrink-0" />
+                            <dd>
+                              {formatDate(agendamento.data)}
+                              {agendamento.hora ? ` às ${agendamento.hora}` : ''}
+                            </dd>
                           </div>
-                        )}
-                        {!selectedAgendamento.tipoImovel && (
-                          <p className="text-gray-400 text-sm">Selecione o tipo de imóvel primeiro</p>
-                        )}
+                          {agendamento.loja && (
+                            <div className="flex items-center gap-2">
+                              <FaStore className="text-slate-400 text-xs shrink-0" />
+                              <dd className="truncate">{agendamento.loja}</dd>
+                            </div>
+                          )}
+                          {endereco && (
+                            <div className="flex items-start gap-2">
+                              <FaMapMarkerAlt className="text-slate-400 text-xs shrink-0 mt-1" />
+                              <dd className="break-words min-w-0">{endereco}</dd>
+                            </div>
+                          )}
+                        </dl>
                       </div>
                     </div>
-                    <div className="md:col-span-2">
-                      <label className="text-sm font-medium text-white">Observações</label>
-                      <textarea
-                        value={selectedAgendamento.observacoes || ''}
-                        onChange={(e) => setSelectedAgendamento({...selectedAgendamento, observacoes: e.target.value})}
-                        rows={3}
-                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-                      />
+                    <div className="grid grid-cols-2 gap-2 mt-3">
+                      <button type="button" onClick={() => handleView(agendamento)} className="btn btn-neutral text-sm">
+                        <FaEye />
+                        Ver
+                      </button>
+                      <button type="button" onClick={() => handleEdit(agendamento)} className="btn btn-neutral text-sm">
+                        <FaEdit />
+                        Editar
+                      </button>
                     </div>
-                  </div>
-                </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
 
-                {/* Endereço */}
-                <div className="bg-purple-600/10 p-6 rounded-xl border border-purple-600/30">
-                  <h4 className="text-lg font-semibold text-white mb-4">Endereço</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-white">CEP</label>
-                      <div className="flex space-x-2">
-                        <input
-                          type="text"
-                          value={selectedAgendamento.endereco?.cep || ''}
-                          onChange={(e) => setSelectedAgendamento({
-                            ...selectedAgendamento, 
-                            endereco: {...selectedAgendamento.endereco, cep: e.target.value}
-                          })}
-                          onBlur={buscarEndereco}
-                          className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-                          placeholder="00000-000"
-                        />
+          {/* Tablet e desktop: tabela */}
+          <div className="hidden md:block card overflow-hidden">
+            <table className="w-full text-left">
+              <thead className="bg-white/5 text-xs font-medium text-slate-300 uppercase tracking-wider">
+                <tr>
+                  <th className="w-12 pl-4 py-3">
+                    <input
+                      type="checkbox"
+                      aria-label="Selecionar todos desta página"
+                      checked={todosSelecionados}
+                      onChange={handleSelectAll}
+                      className="w-4 h-4 rounded accent-blue-600 align-middle"
+                    />
+                  </th>
+                  <th className="px-3 py-3">Cliente</th>
+                  <th className="px-3 py-3">Loja</th>
+                  <th className="px-3 py-3">Data</th>
+                  <th className="px-3 py-3 hidden lg:table-cell">Endereço</th>
+                  <th className="px-3 py-3">Status</th>
+                  <th className="px-3 py-3 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/10">
+                {currentItems.map((agendamento) => (
+                  <tr key={agendamento.id} className="hover:bg-white/5">
+                    <td className="pl-4 py-3">
+                      <input
+                        type="checkbox"
+                        aria-label={`Selecionar ${agendamento.nomeCliente || 'agendamento'}`}
+                        checked={selectedItems.includes(agendamento.id)}
+                        onChange={() => handleSelectItem(agendamento.id)}
+                        className="w-4 h-4 rounded accent-blue-600 align-middle"
+                      />
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-3">
+                        <span className="flex items-center justify-center w-8 h-8 bg-blue-600/20 rounded-full shrink-0">
+                          <FaUser className="text-blue-300 text-sm" />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-white break-words">{agendamento.nomeCliente || 'Cliente sem nome'}</p>
+                          {agendamento.telefone && <p className="text-xs text-slate-400 whitespace-nowrap">{agendamento.telefone}</p>}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 text-sm text-slate-300">{agendamento.loja || '—'}</td>
+                    <td className="px-3 py-3 text-sm text-slate-300 whitespace-nowrap">
+                      <p className="flex items-center gap-1.5">
+                        <FaCalendarAlt className="text-slate-400 text-xs" />
+                        {formatDate(agendamento.data)}
+                      </p>
+                      {agendamento.hora && (
+                        <p className="flex items-center gap-1.5 mt-0.5">
+                          <FaClock className="text-slate-400 text-xs" />
+                          {agendamento.hora}
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-3 py-3 text-sm text-slate-300 hidden lg:table-cell">
+                      {formatEndereco(agendamento.endereco) || '—'}
+                    </td>
+                    <td className="px-3 py-3">
+                      <StatusBadge status={agendamento.status} />
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex justify-end gap-1">
                         <button
                           type="button"
-                          onClick={buscarEndereco}
-                          className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200"
-                          title="Buscar CEP"
+                          onClick={() => handleView(agendamento)}
+                          aria-label={`Ver detalhes de ${agendamento.nomeCliente || 'agendamento'}`}
+                          title="Ver detalhes"
+                          className="btn-icon text-blue-300 hover:bg-white/10"
                         >
-                          🔍
+                          <FaEye />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleEdit(agendamento)}
+                          aria-label={`Editar ${agendamento.nomeCliente || 'agendamento'}`}
+                          title="Editar"
+                          className="btn-icon text-green-300 hover:bg-white/10"
+                        >
+                          <FaEdit />
                         </button>
                       </div>
-                    </div>
-                    <div className="lg:col-span-2">
-                      <label className="text-sm font-medium text-white">Logradouro</label>
-                      <input
-                        type="text"
-                        value={selectedAgendamento.endereco?.logradouro || ''}
-                        onChange={(e) => setSelectedAgendamento({
-                          ...selectedAgendamento, 
-                          endereco: {...selectedAgendamento.endereco, logradouro: e.target.value}
-                        })}
-                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-                        placeholder="Rua, Avenida, etc"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-white">Número</label>
-                      <input
-                        type="text"
-                        value={selectedAgendamento.endereco?.numero || ''}
-                        onChange={(e) => setSelectedAgendamento({
-                          ...selectedAgendamento, 
-                          endereco: {...selectedAgendamento.endereco, numero: e.target.value}
-                        })}
-                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-                        placeholder="123"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-white">Complemento</label>
-                      <input
-                        type="text"
-                        value={selectedAgendamento.endereco?.complemento || ''}
-                        onChange={(e) => setSelectedAgendamento({
-                          ...selectedAgendamento, 
-                          endereco: {...selectedAgendamento.endereco, complemento: e.target.value}
-                        })}
-                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-                        placeholder="Apto 101"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-white">Bairro</label>
-                      <input
-                        type="text"
-                        value={selectedAgendamento.endereco?.bairro || ''}
-                        onChange={(e) => setSelectedAgendamento({
-                          ...selectedAgendamento, 
-                          endereco: {...selectedAgendamento.endereco, bairro: e.target.value}
-                        })}
-                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-                        placeholder="Centro"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-white">Cidade</label>
-                      <input
-                        type="text"
-                        value={selectedAgendamento.endereco?.cidade || ''}
-                        onChange={(e) => setSelectedAgendamento({
-                          ...selectedAgendamento, 
-                          endereco: {...selectedAgendamento.endereco, cidade: e.target.value}
-                        })}
-                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-                        placeholder="São Paulo"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-slate-700 p-6 border-t border-slate-600 flex-shrink-0">
-              <div className="flex space-x-3">
-                <button
-                  onClick={() => handleUpdateAgendamento(selectedAgendamento)}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-all"
-                >
-                  Salvar Alterações
-                </button>
-                <button
-                  onClick={() => setShowEditModal(false)}
-                  className="flex-1 bg-slate-600 hover:bg-slate-700 text-white px-6 py-3 rounded-lg font-medium transition-all"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
-      )}
 
-      {/* Modal de Validação */}
-      {showValidationError && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
-            <div className="text-center">
-              <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
-                validationType === 'success' ? 'bg-green-100' : 
-                validationType === 'error' ? 'bg-red-100' : 'bg-blue-100'
-              }`}>
-                {validationType === 'success' ? (
-                  <FaCheckCircle className="text-green-600 text-2xl" />
-                ) : validationType === 'error' ? (
-                  <FaExclamationTriangle className="text-red-600 text-2xl" />
-                ) : (
-                  <FaInfoCircle className="text-blue-600 text-2xl" />
-                )}
-              </div>
-              <h3 className={`text-xl font-bold mb-2 ${
-                validationType === 'success' ? 'text-green-900' : 
-                validationType === 'error' ? 'text-red-900' : 'text-blue-900'
-              }`}>
-                {validationType === 'success' ? 'Sucesso!' : 
-                 validationType === 'error' ? 'Atenção' : 'Informação'}
-              </h3>
-              <p className="text-gray-600 mb-6 text-left">
-                {validationMessage}
-              </p>
-              
+          {/* Paginação */}
+          <div className="flex items-center justify-between gap-3 mt-4">
+            <p className="text-sm text-slate-300">
+              Página {paginaAtual} de {totalPages}
+            </p>
+            <div className="flex gap-2">
               <button
-                onClick={closeValidationError}
-                className={`w-full px-6 py-3 rounded-lg font-medium transition-all ${
-                  validationType === 'success' ? 'bg-green-600 hover:bg-green-700 text-white' : 
-                  validationType === 'error' ? 'bg-red-600 hover:bg-red-700 text-white' : 
-                  'bg-blue-600 hover:bg-blue-700 text-white'
-                }`}
+                type="button"
+                onClick={() => setCurrentPage(Math.max(1, paginaAtual - 1))}
+                disabled={paginaAtual === 1}
+                className="btn btn-neutral px-3 text-sm"
               >
-                Entendido
+                <FaChevronLeft className="text-xs" />
+                Anterior
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(Math.min(totalPages, paginaAtual + 1))}
+                disabled={paginaAtual === totalPages}
+                className="btn btn-neutral px-3 text-sm"
+              >
+                Próxima
+                <FaChevronRight className="text-xs" />
               </button>
             </div>
           </div>
-        </div>
+        </>
       )}
 
-      {/* Modal de Confirmação */}
-      {showConfirmModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <FaSave className="text-green-600 text-2xl" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
-                Confirmar Alterações
-              </h3>
-              <p className="text-gray-600 mb-6">
-                Tem certeza que deseja salvar as alterações deste agendamento?
-              </p>
-              
-              <div className="flex space-x-3">
+      {/* Modal de visualização */}
+      {showViewModal && selectedAgendamento && (
+        <Modal
+          title="Detalhes do Agendamento"
+          icon={FaEye}
+          onClose={() => setShowViewModal(false)}
+          footer={
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
+              <button type="button" onClick={() => setShowViewModal(false)} className="btn btn-neutral">
+                Fechar
+              </button>
+              {selectedAgendamento.status !== 'concluido' && (
                 <button
-                  onClick={confirmUpdate}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-all"
+                  type="button"
+                  onClick={() => handleUpdateStatus(selectedAgendamento.id, 'concluido')}
+                  className="btn btn-primary"
                 >
-                  Sim, Salvar
+                  <FaCheckCircle />
+                  Concluir agendamento
                 </button>
-                <button
-                  onClick={cancelUpdate}
-                  className="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-medium transition-all"
-                >
-                  Cancelar
-                </button>
-              </div>
+              )}
             </div>
+          }
+        >
+          <div className="space-y-4">
+            <Bloco title="Cliente">
+              <dl className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <Detalhe label="Nome">{selectedAgendamento.nomeCliente || 'Não informado'}</Detalhe>
+                <Detalhe label="Telefone">{selectedAgendamento.telefone || 'Não informado'}</Detalhe>
+                <Detalhe label="Status">
+                  <StatusBadge status={selectedAgendamento.status} />
+                </Detalhe>
+              </dl>
+            </Bloco>
+
+            <Bloco title="Agendamento">
+              <dl className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <Detalhe label="Loja" className="col-span-2 sm:col-span-1">{selectedAgendamento.loja || 'Não informada'}</Detalhe>
+                <Detalhe label="Data">{formatDate(selectedAgendamento.data)}</Detalhe>
+                <Detalhe label="Horário">{selectedAgendamento.hora || 'Não definido'}</Detalhe>
+                <Detalhe label="Tipo de imóvel" className="col-span-2 sm:col-span-1">
+                  <span className="capitalize">{selectedAgendamento.tipoImovel || 'Não informado'}</span>
+                </Detalhe>
+                <Detalhe label="Ambientes" className="col-span-2 sm:col-span-4">
+                  {selectedAgendamento.ambientes && selectedAgendamento.ambientes.length > 0
+                    ? selectedAgendamento.ambientes.join(', ')
+                    : 'Não informados'}
+                </Detalhe>
+                <Detalhe label="Observações" className="col-span-2 sm:col-span-4">
+                  {selectedAgendamento.observacoes || 'Nenhuma'}
+                </Detalhe>
+              </dl>
+            </Bloco>
+
+            {selectedAgendamento.endereco && (
+              <Bloco title="Endereço">
+                <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <Detalhe label="Logradouro" className="col-span-2">{selectedAgendamento.endereco.logradouro || '—'}</Detalhe>
+                  <Detalhe label="Número">{selectedAgendamento.endereco.numero || '—'}</Detalhe>
+                  <Detalhe label="Complemento">{selectedAgendamento.endereco.complemento || '—'}</Detalhe>
+                  <Detalhe label="Bairro">{selectedAgendamento.endereco.bairro || '—'}</Detalhe>
+                  <Detalhe label="Cidade">{selectedAgendamento.endereco.cidade || '—'}</Detalhe>
+                  <Detalhe label="CEP">{selectedAgendamento.endereco.cep || '—'}</Detalhe>
+                </dl>
+              </Bloco>
+            )}
           </div>
-        </div>
+        </Modal>
       )}
-      </div>
+
+      {/* Modal de edição */}
+      {showEditModal && selectedAgendamento && (
+        <Modal
+          title="Editar Agendamento"
+          icon={FaEdit}
+          onClose={() => setShowEditModal(false)}
+          footer={
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
+              <button type="button" onClick={() => setShowEditModal(false)} className="btn btn-neutral">
+                Cancelar
+              </button>
+              <button type="button" onClick={() => handleUpdateAgendamento(selectedAgendamento)} className="btn btn-success">
+                <FaSave />
+                Salvar alterações
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            <Bloco title="Cliente">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="edit-nome" className="field-label">Nome</label>
+                  <input
+                    id="edit-nome"
+                    type="text"
+                    value={selectedAgendamento.nomeCliente || ''}
+                    onChange={(e) => editar({ nomeCliente: e.target.value })}
+                    className="field"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="edit-telefone" className="field-label">Telefone</label>
+                  <input
+                    id="edit-telefone"
+                    type="tel"
+                    inputMode="tel"
+                    value={selectedAgendamento.telefone || ''}
+                    onChange={(e) => editar({ telefone: e.target.value })}
+                    className="field"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="edit-status" className="field-label">Status</label>
+                  <select
+                    id="edit-status"
+                    value={selectedAgendamento.status || ''}
+                    onChange={(e) => editar({ status: e.target.value })}
+                    className="field"
+                  >
+                    <option value="pendente">Pendente</option>
+                    <option value="confirmado">Confirmado</option>
+                    <option value="concluido">Concluído</option>
+                    <option value="cancelado">Cancelado</option>
+                    <option value="agendar">A agendar</option>
+                  </select>
+                </div>
+              </div>
+            </Bloco>
+
+            <Bloco title="Agendamento">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2 sm:col-span-1">
+                  <label htmlFor="edit-loja" className="field-label">Loja</label>
+                  <select
+                    id="edit-loja"
+                    value={selectedAgendamento.loja || ''}
+                    onChange={(e) => editar({ loja: e.target.value })}
+                    className="field"
+                  >
+                    <option value="">Selecione a loja</option>
+                    {/* Mantém visível uma loja antiga que não esteja mais na lista */}
+                    {selectedAgendamento.loja && !LOJAS.includes(selectedAgendamento.loja) && (
+                      <option value={selectedAgendamento.loja}>{selectedAgendamento.loja}</option>
+                    )}
+                    {LOJAS.map((loja) => (
+                      <option key={loja} value={loja}>{loja}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <label htmlFor="edit-tipo" className="field-label">Tipo de imóvel</label>
+                  <select
+                    id="edit-tipo"
+                    value={selectedAgendamento.tipoImovel || ''}
+                    onChange={(e) => editar({ tipoImovel: e.target.value })}
+                    className="field"
+                  >
+                    <option value="">Selecione o tipo</option>
+                    <option value="casa">Casa</option>
+                    <option value="apartamento">Apartamento</option>
+                    <option value="sobrado">Sobrado</option>
+                    <option value="comercial">Comercial</option>
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="edit-data" className="field-label">Data</label>
+                  <input
+                    id="edit-data"
+                    type="date"
+                    value={dateInputValue(selectedAgendamento.data)}
+                    onChange={(e) => editar({ data: e.target.value })}
+                    className="field"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="edit-hora" className="field-label">Horário</label>
+                  <input
+                    id="edit-hora"
+                    type="time"
+                    value={selectedAgendamento.hora || ''}
+                    onChange={(e) => editar({ hora: e.target.value })}
+                    className="field"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <p id="edit-ambientes" className="field-label">Ambientes</p>
+                  {selectedAgendamento.tipoImovel ? (
+                    <div role="group" aria-labelledby="edit-ambientes" className="grid grid-cols-1 min-[400px]:grid-cols-2 sm:grid-cols-3 gap-x-3">
+                      {ambientesPorTipo(selectedAgendamento.tipoImovel).map((ambiente) => {
+                        const ambientes = selectedAgendamento.ambientes || [];
+                        return (
+                          <label key={ambiente} className="flex items-center gap-2.5 min-h-[44px] text-sm text-white cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={ambientes.includes(ambiente)}
+                              onChange={(e) =>
+                                editar({
+                                  ambientes: e.target.checked ? [...ambientes, ambiente] : ambientes.filter((a) => a !== ambiente)
+                                })
+                              }
+                              className="w-5 h-5 rounded accent-blue-600 shrink-0"
+                            />
+                            <span>{ambiente}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-slate-400 text-sm">Selecione o tipo de imóvel primeiro</p>
+                  )}
+                </div>
+                <div className="col-span-2">
+                  <label htmlFor="edit-obs" className="field-label">Observações</label>
+                  <textarea
+                    id="edit-obs"
+                    value={selectedAgendamento.observacoes || ''}
+                    onChange={(e) => editar({ observacoes: e.target.value })}
+                    rows={3}
+                    className="field resize-none"
+                  />
+                </div>
+              </div>
+            </Bloco>
+
+            <Bloco title="Endereço">
+              {cepMessage && (
+                <div
+                  role="status"
+                  className={`mb-3 p-3 rounded-lg text-sm border ${
+                    cepMessage.includes('preenchido')
+                      ? 'bg-green-600/20 text-green-300 border-green-600/30'
+                      : 'bg-yellow-600/20 text-yellow-300 border-yellow-600/30'
+                  }`}
+                >
+                  {cepMessage}
+                </div>
+              )}
+              <div className="grid grid-cols-2 sm:grid-cols-6 gap-4">
+                <div className="col-span-2 sm:col-span-3">
+                  <label htmlFor="edit-cep" className="field-label">CEP</label>
+                  <div className="flex gap-2">
+                    <input
+                      id="edit-cep"
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={9}
+                      value={selectedAgendamento.endereco?.cep || ''}
+                      onChange={(e) => editarEndereco({ cep: e.target.value })}
+                      onBlur={buscarEndereco}
+                      className="field flex-1 min-w-0"
+                      placeholder="00000-000"
+                    />
+                    <button type="button" onClick={buscarEndereco} className="btn btn-primary px-3 shrink-0">
+                      <FaSearch />
+                      Buscar
+                    </button>
+                  </div>
+                </div>
+                <div className="sm:col-span-1">
+                  <label htmlFor="edit-numero" className="field-label">Número</label>
+                  <input
+                    id="edit-numero"
+                    type="text"
+                    value={selectedAgendamento.endereco?.numero || ''}
+                    onChange={(e) => editarEndereco({ numero: e.target.value })}
+                    className="field"
+                    placeholder="123"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label htmlFor="edit-complemento" className="field-label">Complemento</label>
+                  <input
+                    id="edit-complemento"
+                    type="text"
+                    value={selectedAgendamento.endereco?.complemento || ''}
+                    onChange={(e) => editarEndereco({ complemento: e.target.value })}
+                    className="field"
+                    placeholder="Apto 101"
+                  />
+                </div>
+                <div className="col-span-2 sm:col-span-6">
+                  <label htmlFor="edit-logradouro" className="field-label">Logradouro</label>
+                  <input
+                    id="edit-logradouro"
+                    type="text"
+                    value={selectedAgendamento.endereco?.logradouro || ''}
+                    onChange={(e) => editarEndereco({ logradouro: e.target.value })}
+                    className="field"
+                    placeholder="Rua, Avenida, etc"
+                  />
+                </div>
+                <div className="col-span-2 sm:col-span-3">
+                  <label htmlFor="edit-bairro" className="field-label">Bairro</label>
+                  <input
+                    id="edit-bairro"
+                    type="text"
+                    value={selectedAgendamento.endereco?.bairro || ''}
+                    onChange={(e) => editarEndereco({ bairro: e.target.value })}
+                    className="field"
+                    placeholder="Centro"
+                  />
+                </div>
+                <div className="col-span-2 sm:col-span-3">
+                  <label htmlFor="edit-cidade" className="field-label">Cidade</label>
+                  <input
+                    id="edit-cidade"
+                    type="text"
+                    value={selectedAgendamento.endereco?.cidade || ''}
+                    onChange={(e) => editarEndereco({ cidade: e.target.value })}
+                    className="field"
+                    placeholder="São Paulo"
+                  />
+                </div>
+              </div>
+            </Bloco>
+          </div>
+        </Modal>
+      )}
+
+      {/* Confirmação antes de salvar */}
+      {showConfirmModal && (
+        <Modal
+          title="Confirmar alterações"
+          icon={FaSave}
+          size="sm:max-w-md"
+          onClose={cancelUpdate}
+          footer={
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
+              <button type="button" onClick={cancelUpdate} className="btn btn-neutral">
+                Cancelar
+              </button>
+              <button type="button" onClick={confirmUpdate} className="btn btn-success">
+                Sim, salvar
+              </button>
+            </div>
+          }
+        >
+          <p className="text-slate-200">Tem certeza que deseja salvar as alterações deste agendamento?</p>
+        </Modal>
+      )}
+
+      {/* Avisos de validação, erro e sucesso */}
+      {showValidationError && (
+        <Modal
+          title={validationType === 'success' ? 'Sucesso!' : validationType === 'error' ? 'Atenção' : 'Informação'}
+          size="sm:max-w-md"
+          onClose={closeValidationError}
+          footer={
+            <button type="button" onClick={closeValidationError} className="btn btn-primary w-full">
+              Entendido
+            </button>
+          }
+        >
+          <div className="flex items-start gap-3">
+            {validationType === 'success' ? (
+              <FaCheckCircle className="text-green-400 text-2xl shrink-0 mt-0.5" />
+            ) : validationType === 'error' ? (
+              <FaExclamationTriangle className="text-red-400 text-2xl shrink-0 mt-0.5" />
+            ) : (
+              <FaInfoCircle className="text-blue-400 text-2xl shrink-0 mt-0.5" />
+            )}
+            <p className="text-slate-200">{validationMessage}</p>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };

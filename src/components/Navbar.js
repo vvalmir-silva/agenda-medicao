@@ -1,186 +1,110 @@
 import React from 'react';
-import { FaCalendarAlt, FaChartBar, FaHome, FaSignOutAlt, FaList, FaTable, FaUsers } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
+import { FaCalendarAlt, FaChartBar, FaHome, FaSignOutAlt, FaTable, FaUsers, FaClock } from 'react-icons/fa';
 
-const Navbar = ({ user, currentView, onViewChange, onLogout }) => {
+const Navbar = ({ user, currentView, onLogout }) => {
+  const navigate = useNavigate();
+
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: FaHome },
-    { id: 'pendentes', label: 'Agendamentos Pendentes', icon: FaCalendarAlt },
-    { id: 'lista', label: 'Lista Completa', icon: FaTable },
-    { id: 'status', label: 'Status Dashboard', icon: FaChartBar },
-    ...(user.role === 'admin' ? [{ id: 'admin', label: 'Gerenciar Usuários', icon: FaUsers }] : [])
+    { id: 'dashboard', label: 'Início', title: 'Dashboard', icon: FaHome },
+    { id: 'pendentes', label: 'Pendentes', title: 'Agendamentos Pendentes', icon: FaClock },
+    { id: 'lista', label: 'Lista', title: 'Lista Completa', icon: FaTable },
+    { id: 'status', label: 'Status', title: 'Status dos Agendamentos', icon: FaChartBar },
+    ...(user.role === 'admin' ? [{ id: 'admin', label: 'Usuários', title: 'Gerenciar Usuários', icon: FaUsers }] : [])
   ];
 
-  const handleNavClick = (viewId) => {
-    if (onViewChange) {
-      onViewChange(viewId);
-    } else {
-      // Fallback: usar navegação direta do HashRouter
-      window.location.hash = `#/${viewId}`;
-    }
-  };
+  // O formulário é aberto a partir de Pendentes, então destaca essa aba
+  const ativo = currentView === 'formulario' ? 'pendentes' : currentView;
+  const nomeUsuario = user.nome || user.email;
 
   return (
-    <nav className="bg-white/10 backdrop-blur-lg border-b border-white/20 sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
-        <div className="flex items-center justify-between h-14 sm:h-16">
-          {/* Logo */}
-          <div className="flex items-center space-x-2 sm:space-x-3">
-            <div className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 bg-blue-600 rounded-lg">
-              <FaCalendarAlt className="text-white text-sm sm:text-xl" />
-            </div>
-            <h1 className="text-sm sm:text-lg lg:text-xl font-bold text-white">Agenda Medição</h1>
-          </div>
+    <>
+      {/* Barra superior */}
+      <header className="sticky top-0 z-30 bg-slate-900/80 backdrop-blur-lg border-b border-white/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-3 h-14 md:h-16">
+          <button
+            type="button"
+            onClick={() => navigate('/dashboard')}
+            className="flex items-center gap-2.5 min-h-[44px] shrink-0 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+            aria-label="Agenda Medição - ir para o início"
+          >
+            <span className="flex items-center justify-center w-9 h-9 bg-blue-600 rounded-lg">
+              <FaCalendarAlt className="text-white" />
+            </span>
+            <span className="text-base lg:text-lg font-bold text-white whitespace-nowrap md:hidden lg:inline">Agenda Medição</span>
+          </button>
 
-          {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center space-x-1">
-            {navItems.map(item => {
+          {/* Navegação no topo: tablet e desktop */}
+          <nav className="hidden md:flex items-center gap-1" aria-label="Navegação principal">
+            {navItems.map((item) => {
               const Icon = item.icon;
+              const selecionado = ativo === item.id;
               return (
                 <button
                   key={item.id}
-                  onClick={() => handleNavClick(item.id)}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors duration-200 text-sm ${
-                    currentView === item.id
-                      ? 'bg-blue-600 text-white'
-                      : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                  type="button"
+                  onClick={() => navigate(`/${item.id}`)}
+                  title={item.title}
+                  aria-current={selecionado ? 'page' : undefined}
+                  className={`flex items-center gap-2 min-h-[44px] px-3 rounded-lg text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+                    selecionado ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-white/10 hover:text-white'
                   }`}
                 >
-                  <Icon className="text-base" />
-                  <span className="hidden xl:inline">{item.label}</span>
+                  <Icon />
+                  <span>{item.label}</span>
                 </button>
               );
             })}
-          </div>
+          </nav>
 
-          {/* Tablet Navigation */}
-          <div className="hidden md:flex lg:hidden items-center space-x-1">
-            {navItems.slice(0, 4).map(item => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => handleNavClick(item.id)}
-                  className={`flex items-center justify-center w-10 h-10 rounded-lg transition-colors duration-200 ${
-                    currentView === item.id
-                      ? 'bg-blue-600 text-white'
-                      : 'text-slate-300 hover:bg-white/10 hover:text-white'
-                  }`}
-                  title={item.label}
-                >
-                  <Icon className="text-base" />
-                </button>
-              );
-            })}
-            {navItems.length > 4 && (
-              <div className="relative group">
-                <button
-                  className={`flex items-center justify-center w-10 h-10 rounded-lg transition-colors duration-200 ${
-                    navItems.slice(4).some(item => currentView === item.id)
-                      ? 'bg-blue-600 text-white'
-                      : 'text-slate-300 hover:bg-white/10 hover:text-white'
-                  }`}
-                  title="Mais opções"
-                >
-                  <FaList className="text-base" />
-                </button>
-                <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-600 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                  {navItems.slice(4).map(item => {
-                    const Icon = item.icon;
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => handleNavClick(item.id)}
-                        className={`flex items-center space-x-3 w-full px-4 py-3 text-left transition-colors duration-200 ${
-                          currentView === item.id
-                            ? 'bg-blue-600 text-white'
-                            : 'text-slate-300 hover:bg-slate-700 hover:text-white'
-                        }`}
-                      >
-                        <Icon className="text-base" />
-                        <span className="text-sm">{item.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* User Info & Logout */}
-          <div className="flex items-center space-x-2 sm:space-x-4">
-            <div className="text-right hidden sm:block">
-              <p className="text-white text-xs sm:text-sm font-medium truncate max-w-24 sm:max-w-none">{user.email}</p>
-              <p className="text-slate-400 text-xs">
-                {user.role === 'admin' ? 'Administrador' : 'Usuário'}
-              </p>
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="text-right min-w-0 hidden sm:block md:hidden xl:block">
+              <p className="text-white text-sm font-medium truncate max-w-[14rem]">{nomeUsuario}</p>
+              <p className="text-slate-400 text-xs">{user.role === 'admin' ? 'Administrador' : 'Usuário'}</p>
             </div>
             <button
+              type="button"
               onClick={onLogout}
-              className="flex items-center space-x-1 sm:space-x-2 bg-red-600 hover:bg-red-700 text-white px-2 sm:px-4 py-2 rounded-lg transition-colors duration-200 text-xs sm:text-sm"
+              aria-label="Sair"
+              title="Sair"
+              className="btn btn-danger px-3 shrink-0"
             >
-              <FaSignOutAlt className="text-sm sm:text-base" />
-              <span className="hidden sm:inline">Sair</span>
+              <FaSignOutAlt />
+              <span className="hidden lg:inline">Sair</span>
             </button>
           </div>
         </div>
+      </header>
 
-        {/* Mobile Navigation */}
-        <div className="lg:hidden border-t border-white/10 py-2">
-          <div className="grid grid-cols-4 gap-1">
-            {navItems.slice(0, 4).map(item => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => handleNavClick(item.id)}
-                  className={`flex flex-col items-center justify-center py-2 rounded-lg transition-colors duration-200 ${
-                    currentView === item.id
-                      ? 'bg-blue-600 text-white'
-                      : 'text-slate-300 hover:bg-white/10 hover:text-white'
-                  }`}
-                >
-                  <Icon className="text-base mb-1" />
-                  <span className="text-xs text-center leading-tight">{item.label.split(' ')[0]}</span>
-                </button>
-              );
-            })}
-            {navItems.length > 4 && (
-              <div className="relative group">
-                <button
-                  className={`flex flex-col items-center justify-center py-2 rounded-lg transition-colors duration-200 w-full ${
-                    navItems.slice(4).some(item => currentView === item.id)
-                      ? 'bg-blue-600 text-white'
-                      : 'text-slate-300 hover:bg-white/10 hover:text-white'
-                  }`}
-                >
-                  <FaList className="text-base mb-1" />
-                  <span className="text-xs text-center leading-tight">Mais</span>
-                </button>
-                <div className="absolute bottom-full left-0 right-0 mb-2 bg-slate-800 border border-slate-600 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                  {navItems.slice(4).map(item => {
-                    const Icon = item.icon;
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => handleNavClick(item.id)}
-                        className={`flex items-center space-x-3 w-full px-4 py-3 text-left transition-colors duration-200 ${
-                          currentView === item.id
-                            ? 'bg-blue-600 text-white'
-                            : 'text-slate-300 hover:bg-slate-700 hover:text-white'
-                        }`}
-                      >
-                        <Icon className="text-base" />
-                        <span className="text-sm">{item.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
+      {/* Barra inferior: celular */}
+      <nav
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-900/95 backdrop-blur-lg border-t border-white/10 safe-bottom"
+        aria-label="Navegação principal"
+      >
+        <div className="grid" style={{ gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` }}>
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const selecionado = ativo === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => navigate(`/${item.id}`)}
+                aria-current={selecionado ? 'page' : undefined}
+                className={`flex flex-col items-center justify-center gap-1 min-h-[56px] px-1 text-[11px] font-medium transition-colors focus:outline-none focus-visible:bg-white/10 ${
+                  selecionado ? 'text-blue-400' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <span className={`flex items-center justify-center w-12 h-7 rounded-full transition-colors ${selecionado ? 'bg-blue-600/25' : ''}`}>
+                  <Icon className="text-lg" />
+                </span>
+                <span className="truncate max-w-full">{item.label}</span>
+              </button>
+            );
+          })}
         </div>
-      </div>
-    </nav>
+      </nav>
+    </>
   );
 };
 

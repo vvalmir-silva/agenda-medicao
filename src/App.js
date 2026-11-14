@@ -22,9 +22,10 @@ const AppContent = ({ user, onLogout, onLogin }) => {
   }, [location]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700">
+    <div className="min-h-app bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700">
       <Navbar user={user} onLogout={onLogout} currentView={currentView} />
-      <div className="container mx-auto px-4 py-8">
+      {/* pb-24 no celular deixa o conteúdo livre da barra de navegação inferior */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 sm:pt-8 pb-24 md:pb-10">
         <Routes>
           <Route path="/" element={<Dashboard user={user} />} />
           <Route path="/dashboard" element={<Dashboard user={user} />} />
@@ -41,7 +42,7 @@ const AppContent = ({ user, onLogout, onLogin }) => {
             } 
           />
         </Routes>
-      </div>
+      </main>
     </div>
   );
 };
@@ -96,7 +97,7 @@ function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 flex items-center justify-center">
+      <div className="min-h-app bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 flex items-center justify-center">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400"></div>
           <p className="text-white mt-4">Carregando...</p>

@@ -29,8 +29,8 @@ const Login = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 flex items-center justify-center px-4">
-      <div className="bg-white/10 backdrop-blur-lg rounded-3xl shadow-2xl p-8 w-full max-w-md border border-white/20">
+    <div className="min-h-app bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 flex items-center justify-center px-4 py-6">
+      <div className="bg-white/10 backdrop-blur-lg rounded-3xl shadow-2xl p-6 sm:p-8 w-full max-w-md border border-white/20">
         {/* Logo e Título */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-white/20 rounded-full mb-4">
@@ -40,7 +40,7 @@ const Login = ({ onLogin }) => {
               <FaCalendarAlt className="text-white text-3xl" />
             )}
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
             {isAdminMode ? 'Área Administrativa' : 'Agenda Medição'}
           </h1>
           <p className="text-slate-300 text-sm">
@@ -62,9 +62,12 @@ const Login = ({ onLogin }) => {
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <FaUser className="text-slate-400" />
             </div>
+            <label htmlFor="username" className="sr-only">Nome de usuário ou e-mail</label>
             <input
               type="text"
               id="username"
+              autoComplete="username"
+              autoCapitalize="none"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200"
@@ -78,9 +81,11 @@ const Login = ({ onLogin }) => {
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <FaLock className="text-slate-400" />
             </div>
+            <label htmlFor="password" className="sr-only">Senha</label>
             <input
               type="password"
               id="password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200"
@@ -93,7 +98,7 @@ const Login = ({ onLogin }) => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-xl hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-900 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full min-h-[48px] bg-blue-600 text-white font-semibold py-3 px-4 rounded-xl hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-900 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? (
               <span className="flex items-center justify-center">
@@ -119,7 +124,7 @@ const Login = ({ onLogin }) => {
               setUsername('');
               setPassword('');
             }}
-            className="text-slate-300 hover:text-white text-sm transition-colors duration-200"
+            className="inline-flex items-center min-h-[44px] px-3 text-slate-300 hover:text-white text-sm transition-colors duration-200"
           >
             {isAdminMode ? '← Voltar para Login' : '→ Acesso Administrativo'}
           </button>
